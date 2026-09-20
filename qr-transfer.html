@@ -226,8 +226,7 @@
         let qrTimeout = null;
         let isSending = false;
         
-        // Optimierte Paketgröße für beste Performance
-        const CHUNK_SIZE = 350; 
+        const CHUNK_SIZE = 250; // Sichere Paketgröße pro QR-Code
         let rawChunks = [];
         let currentChunkIndex = 0;
         let selectedFile = null;
@@ -237,7 +236,6 @@
         let receivedChunks = {};
         let totalChunksToReceive = 0;
         let receivedFileName = "datei";
-        let receivedMimeType = "application/octet-stream";
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -306,42 +304,41 @@
 
             const statusEl = document.getElementById('send-status');
             statusEl.className = "status-box";
-            statusEl.innerText = "Bereite blitzschnelle Übertragung vor...";
+            statusEl.innerText = "Lese Datei...";
 
-            // Hocheffizientes Binär-Lesen ohne Speichersperre
+            // Sicheres DataURL-Einlesen
             const reader = new FileReader();
             reader.onload = function(e) {
-                const buffer = new Uint8Array(e.target.result);
-                rawChunks = [];
+                try {
+                    const dataUrl = e.target.result; // Enthält Base64 + MIME-Type
+                    rawChunks = [];
 
-                // Binärdaten direkt in Base64 Chunks packen
-                let binaryString = "";
-                for (let i = 0; i < buffer.length; i++) {
-                    binaryString += String.fromCharCode(buffer[i]);
+                    // DataURL direkt in Blöcke schneiden
+                    for (let i = 0; i < dataUrl.length; i += CHUNK_SIZE) {
+                        rawChunks.push(dataUrl.slice(i, i + CHUNK_SIZE));
+                    }
+
+                    currentChunkIndex = 0;
+                    isSending = true;
+
+                    // UI Anpassen
+                    const sendBtn = document.getElementById('sendBtn');
+                    sendBtn.className = "btn btn-danger";
+                    sendBtn.innerText = "⏹️ Übertragung stoppen";
+
+                    document.getElementById('qr-wrapper').style.display = "block";
+                    document.getElementById('send-progress-bg').style.display = "block";
+
+                    // Start der Animation
+                    renderNextQr();
+                } catch (err) {
+                    console.error(err);
+                    statusEl.className = "status-box error";
+                    statusEl.innerText = "Fehler beim Verarbeiten der Datei.";
                 }
-                const fullBase64 = btoa(binaryString);
-
-                for (let i = 0; i < fullBase64.length; i += CHUNK_SIZE) {
-                    rawChunks.push(fullBase64.slice(i, i + CHUNK_SIZE));
-                }
-
-                currentChunkIndex = 0;
-                isSending = true;
-
-                // UI Anpassen
-                const sendBtn = document.getElementById('sendBtn');
-                sendBtn.className = "btn btn-danger";
-                sendBtn.innerText = "⏹️ Übertragung stoppen";
-
-                document.getElementById('qr-wrapper').style.display = "block";
-                document.getElementById('send-progress-bg').style.display = "block";
-
-                // Loop starten
-                renderNextQr();
             };
 
-            // Startet das Lesen als ArrayBuffer
-            reader.readAsArrayBuffer(selectedFile);
+            reader.readAsDataURL(selectedFile);
         }
 
         function renderNextQr() {
@@ -351,16 +348,15 @@
             const chunkData = rawChunks[currentChunkIndex];
             const canvas = document.getElementById('qrcode-canvas');
 
-            // Format: INDEX|TOTAL|FILENAME|TYPE|DATA
-            const mimeType = selectedFile.type || "application/octet-stream";
-            const payload = `${currentChunkIndex}|${total}|${encodeURIComponent(selectedFile.name)}|${encodeURIComponent(mimeType)}|${chunkData}`;
+            // Format: INDEX|TOTAL|FILENAME|DATA
+            const payload = `${currentChunkIndex}|${total}|${encodeURIComponent(selectedFile.name)}|${chunkData}`;
 
             QRCode.toCanvas(canvas, payload, { 
                 width: 200, 
                 margin: 1, 
                 errorCorrectionLevel: 'L' 
             }, function (err) {
-                if (err) console.error(err);
+                if (err) console.error("QR Rendering Error:", err);
             });
 
             // UI Aktualisieren
@@ -370,8 +366,8 @@
 
             currentChunkIndex = (currentChunkIndex + 1) % total;
 
-            // Framerate Anpassen
-            const delay = Math.max(5, Math.floor(1000 / currentFps));
+            // Nächster Frame mit aktueller FPS-Verzögerung
+            const delay = Math.max(8, Math.floor(1000 / currentFps));
             qrTimeout = setTimeout(renderNextQr, delay);
         }
 
@@ -416,17 +412,15 @@
             
             html5QrcodeScanner.render((decodedText) => {
                 const parts = decodedText.split('|');
-                if (parts.length < 5) return;
+                if (parts.length < 4) return;
 
                 const idx = parseInt(parts[0]);
                 const total = parseInt(parts[1]);
                 const filename = decodeURIComponent(parts[2]);
-                const mimeType = decodeURIComponent(parts[3]);
-                const data = parts.slice(4).join('|');
+                const data = parts.slice(3).join('|');
 
                 totalChunksToReceive = total;
                 receivedFileName = filename;
-                receivedMimeType = mimeType;
 
                 if (!receivedChunks[idx]) {
                     receivedChunks[idx] = data;
@@ -446,17 +440,16 @@
         }
 
         function reconstructFile() {
-            let fullBase64 = "";
+            let fullDataUrl = "";
             for (let i = 0; i < totalChunksToReceive; i++) {
-                fullBase64 += receivedChunks[i];
+                fullDataUrl += receivedChunks[i];
             }
 
             document.getElementById('receive-status').className = "status-box success";
             document.getElementById('receive-status').innerText = `✅ "${receivedFileName}" erfolgreich empfangen!`;
 
-            const dataUrl = `data:${receivedMimeType};base64,${fullBase64}`;
             const downloadBtn = document.getElementById('downloadBtn');
-            downloadBtn.href = dataUrl;
+            downloadBtn.href = fullDataUrl;
             downloadBtn.download = receivedFileName;
             downloadBtn.style.display = "block";
         }
