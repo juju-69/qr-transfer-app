@@ -15,32 +15,28 @@
 <body>
 
     <div class="card">
-        <h2>Private App</h2>
-        <p>Gib den Zugangsschlüssel ein:</p>
+        <h2>Private App Central</h2>
+        <p>Zugangsschlüssel eingeben:</p>
         <input type="password" id="passkey" placeholder="Schlüssel">
         <button onclick="unlock()">Freischalten</button>
-        <div id="err" class="error">Falscher Zugangsschlüssel!</div>
+        <div id="err" class="error">Falscher Schlüssel!</div>
     </div>
 
     <script>
-        // Dein geheimer Schlüssel für dich und deine Freunde:
         const SECRET_KEY = "Appsbyju19906305"; 
 
         function unlock() {
             const input = document.getElementById("passkey").value;
             if (input === SECRET_KEY) {
-                // Merkt sich den Login im Browser
                 localStorage.setItem("app_unlocked", "true");
-                // Leitet zur eigentlichen App weiter
-                window.location.href = "qr-transfer.html";
+                window.location.href = "dashboard.html";
             } else {
                 document.getElementById("err").style.display = "block";
             }
         }
 
-        // Automatisch weiterleiten, wenn man schon mal eingeloggt war
         if (localStorage.getItem("app_unlocked") === "true") {
-            window.location.href = "qr-transfer.html";
+            window.location.href = "dashboard.html";
         }
     </script>
 
