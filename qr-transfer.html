@@ -2,7 +2,7 @@
 <html lang="de">
 <head>
     <script>
-        // Prüft, ob der Schlüssel eingegeben wurde – sonst zurück zum Login
+        // Sicherheits-Check: Ohne Schlüssel zurück zum Login
         if (localStorage.getItem("app_unlocked") !== "true") {
             window.location.href = "index.html";
         }
@@ -10,8 +10,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QR Transfer</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f2f2f7; padding: 20px; text-align: center; }
+        .card { background: white; padding: 20px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
+        button { background: #007AFF; color: white; border: none; padding: 12px 20px; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; width: 100%; margin-top: 15px; }
+        .logout { background: #FF3B30; margin-top: 10px; }
+    </style>
 </head>
 <body>
-    <!-- Hier steht der Code für deine QR-Übertragung -->
+
+    <div class="card">
+        <h2>QR Code Transfer</h2>
+        <p>Willkommen in deiner privaten Offline-App!</p>
+        
+        <!-- Hier kommt später dein QR-Generator / Scanner rein -->
+        <p>Bereit für den Dateitransfer.</p>
+
+        <button class="logout" onclick="logout()">Sperren / Ausloggen</button>
+    </div>
+
+    <script>
+        function logout() {
+            localStorage.removeItem("app_unlocked");
+            window.location.href = "index.html";
+        }
+    </script>
+
 </body>
 </html>
