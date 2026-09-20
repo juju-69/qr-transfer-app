@@ -56,6 +56,62 @@
         .file-title { font-weight: 600; color: #0a84ff; font-size: 14px; }
         input[type="file"] { display: none; }
 
+        /* Controls / Slider Styling */
+        .controls-container {
+            background: #2c2c2e;
+            padding: 14px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #8e8e93;
+        }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-label { font-size: 11px; color: #636366; font-weight: 600; }
+        .custom-slider {
+            flex: 1;
+            accent-color: #0a84ff;
+            height: 6px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .number-input {
+            width: 65px;
+            background: #1c1c1e;
+            border: 1px solid #3a3a3c;
+            border-radius: 8px;
+            color: #fff;
+            padding: 6px 4px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 13px;
+            outline: none;
+        }
+        .number-input:focus { border-color: #0a84ff; }
+        .warning-box {
+            color: #ffd60a;
+            font-size: 12px;
+            line-height: 1.3;
+            display: none;
+            background: rgba(255, 214, 10, 0.1);
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 214, 10, 0.2);
+        }
+
         /* Color Matrix Output Canvas */
         #matrix-wrapper { 
             background: #000; 
@@ -115,6 +171,39 @@
             </label>
             <input type="file" id="fileInput" onchange="fileSelected()">
 
+            <!-- Einstellungsmöglichkeiten -->
+            <div class="controls-container">
+                <!-- FPS Control -->
+                <div class="control-group">
+                    <div class="control-header">
+                        <span>Geschwindigkeit</span>
+                        <span>FPS</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label">Langsamer</span>
+                        <input type="range" id="fpsRange" class="custom-slider" min="5" max="120" value="8" oninput="updateFps(this.value)">
+                        <span class="slider-label">Schneller</span>
+                        <input type="number" id="fpsInput" class="number-input" min="5" max="120" value="8" onchange="updateFps(this.value)">
+                    </div>
+                    <div id="fpsWarning" class="warning-box">⚠️ Ab 60 FPS kann das Bild auf manchen Displays flackern oder von Kameras nicht mehr erkannt werden.</div>
+                </div>
+
+                <!-- Pixel Grid Control -->
+                <div class="control-group">
+                    <div class="control-header">
+                        <span>Gitter-Auflösung</span>
+                        <span>Pixel</span>
+                    </div>
+                    <div class="slider-row">
+                        <span class="slider-label">Groß (8x8)</span>
+                        <input type="range" id="gridRange" class="custom-slider" min="6" max="30" value="8" oninput="updateGrid(this.value)">
+                        <span class="slider-label">Klein (30x30)</span>
+                        <input type="number" id="gridInput" class="number-input" min="6" max="30" value="8" onchange="updateGrid(this.value)">
+                    </div>
+                    <div id="gridWarning" class="warning-box">⚠️ Ab 20 Pixeln werden die einzelnen Farbfelder sehr klein. Das erfordert eine sehr scharfe Kamera.</div>
+                </div>
+            </div>
+
             <button id="sendBtn" class="btn btn-primary" style="display:none;" onclick="toggleSend()">▶️ Farb-Übertragung starten</button>
 
             <div id="matrix-wrapper">
@@ -147,17 +236,18 @@
     </div>
 
     <script>
-        // Farbpalette (4 klare Farben = 2 Bits pro Feld)
-        // 00 = Schwarz, 01 = Weiß, 10 = Cyan (#00FFFF), 11 = Magenta (#FF00FF)
         const COLOR_MAP = ["#000000", "#FFFFFF", "#00FFFF", "#FF00FF"];
-        const GRID_SIZE = 8; // 8x8 Grid
         
-        let sendInterval = null;
+        let sendTimeout = null;
         let isSending = false;
         let selectedFile = null;
         let rawBase64 = "";
         let chunks = [];
         let currentChunkIndex = 0;
+
+        // Dynamische Einstellungen
+        let currentFps = 8;
+        let currentGridSize = 8;
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -171,6 +261,38 @@
                 document.querySelectorAll('.tab-btn')[1].classList.add('active');
                 document.getElementById('receive-tab').classList.add('active');
                 stopSend();
+            }
+        }
+
+        // --- SLIDER CONTROLS ---
+        function updateFps(val) {
+            let v = parseInt(val);
+            if (isNaN(v)) v = 8;
+            if (v < 5) v = 5;
+            if (v > 120) v = 120;
+
+            currentFps = v;
+            document.getElementById('fpsRange').value = v;
+            document.getElementById('fpsInput').value = v;
+
+            document.getElementById('fpsWarning').style.display = (v >= 60) ? "block" : "none";
+        }
+
+        function updateGrid(val) {
+            let v = parseInt(val);
+            if (isNaN(v)) v = 8;
+            if (v < 6) v = 6;
+            if (v > 30) v = 30;
+
+            currentGridSize = v;
+            document.getElementById('gridRange').value = v;
+            document.getElementById('gridInput').value = v;
+
+            document.getElementById('gridWarning').style.display = (v >= 20) ? "block" : "none";
+
+            // Falls bereits eine Datei ausgewählt ist, Chunks neu berechnen
+            if (selectedFile && isSending) {
+                prepareChunks();
             }
         }
 
@@ -189,22 +311,29 @@
             else startSend();
         }
 
+        function prepareChunks() {
+            if (!rawBase64) return;
+            const fullPayload = JSON.stringify({ name: selectedFile.name, data: rawBase64 });
+            
+            // Nutzbare Daten-Pixel pro Frame berechnen (Grid-Größe minus 4 Ecken-Marker)
+            const totalCells = currentGridSize * currentGridSize;
+            const dataCells = totalCells - 4; 
+            const bytesPerFrame = Math.floor((dataCells * 2) / 8); // 2 Bits pro Zelle
+
+            const chunkSize = Math.max(4, bytesPerFrame);
+            chunks = [];
+            for (let i = 0; i < fullPayload.length; i += chunkSize) {
+                chunks.push(fullPayload.slice(i, i + chunkSize));
+            }
+        }
+
         function startSend() {
             if (!selectedFile) return;
 
             const reader = new FileReader();
             reader.onload = function(e) {
                 rawBase64 = e.target.result;
-                
-                // Wir packen Header + Daten zusammen
-                const fullPayload = JSON.stringify({ name: selectedFile.name, data: rawBase64 });
-                
-                // In kleine Stücke schneiden (Passend für 8x8 Grid mit 2 Bits/Cell = 16 Bytes pro Bild)
-                const chunkSize = 12; 
-                chunks = [];
-                for (let i = 0; i < fullPayload.length; i += chunkSize) {
-                    chunks.push(fullPayload.slice(i, i + chunkSize));
-                }
+                prepareChunks();
 
                 currentChunkIndex = 0;
                 isSending = true;
@@ -214,8 +343,7 @@
                 document.getElementById('matrix-wrapper').style.display = "block";
                 document.getElementById('send-progress-bg').style.display = "block";
 
-                // 8 Bild-Wechsel pro Sekunde (Sehr flüssig & optisch cool)
-                sendInterval = setInterval(renderColorMatrix, 125);
+                renderColorMatrix();
             };
             reader.readAsText(new Blob([selectedFile]));
         }
@@ -225,11 +353,10 @@
 
             const canvas = document.getElementById('color-canvas');
             const ctx = canvas.getContext('2d');
-            const cellSize = canvas.width / GRID_SIZE;
+            const cellSize = canvas.width / currentGridSize;
 
             const chunk = chunks[currentChunkIndex];
             
-            // Konvertiere Text in Binär-String
             let bitString = "";
             for (let i = 0; i < chunk.length; i++) {
                 bitString += chunk.charCodeAt(i).toString(2).padStart(8, '0');
@@ -238,16 +365,15 @@
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             let bitPointer = 0;
-            for (let row = 0; row < GRID_SIZE; row++) {
-                for (let col = 0; col < GRID_SIZE; col++) {
-                    // Ecken als feste Marker-Farben (Orientierung für Auslesung)
-                    if ((row === 0 && col === 0) || (row === 0 && col === GRID_SIZE - 1) ||
-                        (row === GRID_SIZE - 1 && col === 0)) {
-                        ctx.fillStyle = "#FF0000"; // Roter Kalibrierungs-Punkt
-                    } else if (row === GRID_SIZE - 1 && col === GRID_SIZE - 1) {
-                        ctx.fillStyle = "#00FF00"; // Grüner Kalibrierungs-Punkt
+            for (let row = 0; row < currentGridSize; row++) {
+                for (let col = 0; col < currentGridSize; col++) {
+                    // Ecken-Marker für Kalibrierung
+                    if ((row === 0 && col === 0) || (row === 0 && col === currentGridSize - 1) ||
+                        (row === currentGridSize - 1 && col === 0)) {
+                        ctx.fillStyle = "#FF0000"; // Rot
+                    } else if (row === currentGridSize - 1 && col === currentGridSize - 1) {
+                        ctx.fillStyle = "#00FF00"; // Grün
                     } else {
-                        // Daten-Pixel (2 Bits = 1 Farbe)
                         let bits = bitString.substr(bitPointer, 2);
                         bitPointer += 2;
                         if (bits.length < 2) bits = "00";
@@ -260,17 +386,20 @@
                 }
             }
 
-            // Fortschritt
             const pct = Math.round(((currentChunkIndex + 1) / chunks.length) * 100);
             document.getElementById('send-progress-fill').style.width = pct + "%";
-            document.getElementById('send-status').innerText = `Sende Mosaik-Frame ${currentChunkIndex + 1} / ${chunks.length} (${pct}%)`;
+            document.getElementById('send-status').innerText = `Sende Mosaik-Frame ${currentChunkIndex + 1} / ${chunks.length} (${pct}%) @ ${currentFps} FPS | Grid: ${currentGridSize}x${currentGridSize}`;
 
             currentChunkIndex = (currentChunkIndex + 1) % chunks.length;
+
+            // Dynamische FPS-Ablaufsteuerung
+            const delay = Math.max(8, Math.floor(1000 / currentFps));
+            sendTimeout = setTimeout(renderColorMatrix, delay);
         }
 
         function stopSend() {
             isSending = false;
-            if (sendInterval) clearInterval(sendInterval);
+            if (sendTimeout) clearTimeout(sendTimeout);
             document.getElementById('sendBtn').className = "btn btn-primary";
             document.getElementById('sendBtn').innerText = "▶️ Übertragung starten";
             document.getElementById('matrix-wrapper').style.display = "none";
