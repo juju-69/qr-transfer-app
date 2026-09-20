@@ -45,12 +45,12 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; }
         
-        /* Dropzone / Upload Box - FIXED LAYOUT */
+        /* Dropzone / Upload Box */
         .file-box { 
             background: #2c2c2e; 
             border: 2px dashed #48484a; 
             border-radius: 18px; 
-            padding: 20px 16px; 
+            padding: 16px; 
             text-align: center; 
             cursor: pointer; 
             transition: border-color 0.2s, background 0.2s;
@@ -59,11 +59,11 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            min-height: 110px;
+            min-height: 100px;
             overflow: hidden;
         }
         .file-box:active { border-color: #0a84ff; background: #323236; }
-        .file-icon { font-size: 32px; margin-bottom: 6px; display: block; }
+        .file-icon { font-size: 30px; margin-bottom: 4px; display: block; }
         .file-title { 
             font-weight: 600; 
             color: #0a84ff; 
@@ -75,22 +75,72 @@
             padding: 0 8px;
         }
         input[type="file"] { display: none; }
+
+        /* FPS Controls Section */
+        .fps-container {
+            background: #2c2c2e;
+            padding: 14px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+        }
+        .fps-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            font-weight: 600;
+            color: #8e8e93;
+            margin-bottom: 8px;
+        }
+        .fps-input-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .fps-slider {
+            flex: 1;
+            accent-color: #0a84ff;
+            height: 6px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .fps-number-input {
+            width: 60px;
+            background: #1c1c1e;
+            border: 1px solid #3a3a3c;
+            border-radius: 8px;
+            color: #fff;
+            padding: 6px 8px;
+            font-weight: 700;
+            text-align: center;
+            font-size: 14px;
+            outline: none;
+        }
+        .fps-number-input:focus { border-color: #0a84ff; }
+        .fps-warning {
+            color: #ffd60a;
+            font-size: 12px;
+            margin-top: 8px;
+            display: none;
+            text-align: left;
+            line-height: 1.3;
+        }
         
         /* QR Code Output Box */
         #qr-wrapper { 
             background: #fff; 
-            padding: 16px; 
+            padding: 14px; 
             border-radius: 20px; 
             margin: 16px auto; 
             width: fit-content; 
             display: none; 
             box-shadow: 0 8px 24px rgba(0,0,0,0.4);
         }
-        #qrcode-canvas { display: block; max-width: 220px; height: auto; }
+        #qrcode-canvas { display: block; max-width: 200px; height: auto; }
         
         /* Progress & Status */
         .progress-bar-bg { background: #2c2c2e; height: 8px; border-radius: 4px; overflow: hidden; margin: 12px 0 6px 0; display: none; }
-        .progress-bar-fill { background: #30d158; height: 100%; width: 0%; transition: width 0.15s ease; }
+        .progress-bar-fill { background: #30d158; height: 100%; width: 0%; transition: width 0.1s linear; }
         
         .status-box { font-size: 13px; color: #8e8e93; text-align: center; margin-top: 8px; line-height: 1.4; word-break: break-word; }
         .status-box.error { color: #ff453a; font-weight: 500; }
@@ -103,7 +153,8 @@
         .btn { border: none; padding: 14px; border-radius: 14px; font-weight: 600; font-size: 15px; width: 100%; cursor: pointer; transition: opacity 0.2s; text-align: center; text-decoration: none; display: inline-block; box-sizing: border-box; }
         .btn:active { opacity: 0.75; }
         .btn-primary { background: #0a84ff; color: white; }
-        .btn-success { background: #30d158; color: white; margin-top: 12px; }
+        .btn-success { background: #30d158; color: white; }
+        .btn-danger { background: #ff453a; color: white; }
         .btn-back { background: #2c2c2e; color: #8e8e93; border: 1px solid #3a3a3c; margin-top: 20px; }
     </style>
 </head>
@@ -124,8 +175,23 @@
                 <span class="file-icon">📄</span>
                 <span class="file-title" id="file-label-text">Datei auswählen</span>
             </label>
-            <input type="file" id="fileInput" onchange="processFile()">
+            <input type="file" id="fileInput" onchange="fileSelected()">
             
+            <!-- FPS Slider Control -->
+            <div class="fps-container">
+                <div class="fps-header">
+                    <span>Übertragungs-Geschwindigkeit</span>
+                    <span>FPS</span>
+                </div>
+                <div class="fps-input-group">
+                    <input type="range" id="fpsRange" class="fps-slider" min="5" max="120" value="15" oninput="updateFpsFromRange(this.value)">
+                    <input type="number" id="fpsInput" class="fps-number-input" min="5" max="120" value="15" onchange="updateFpsFromInput(this.value)">
+                </div>
+                <div id="fpsWarning" class="fps-warning">⚠️ Hohe Bildrate (>60 FPS): Kann je nach Kamera & Bildschirm zu Erkennungsproblemen führen.</div>
+            </div>
+
+            <button id="sendBtn" class="btn btn-primary" style="display:none;" onclick="toggleSend()">▶️ Übertragung starten</button>
+
             <div id="qr-wrapper">
                 <canvas id="qrcode-canvas"></canvas>
             </div>
@@ -133,12 +199,12 @@
             <div id="send-progress-bg" class="progress-bar-bg">
                 <div id="send-progress-fill" class="progress-bar-fill"></div>
             </div>
-            <div id="send-status" class="status-box">Unterstützt beliebig große Dateien via Rolling QR-Code Loop.</div>
+            <div id="send-status" class="status-box">Wähle eine Datei zum Senden.</div>
         </div>
 
         <!-- TAB 2: DATEI EMPFANGEN -->
         <div id="receive-tab" class="tab-content">
-            <p style="font-size: 14px; color: #8e8e93; text-align: center; margin-top: 0;">Kamera auf das andere Gerät richten, um die QR-Schleife zu scannen:</p>
+            <p style="font-size: 14px; color: #8e8e93; text-align: center; margin-top: 0;">Kamera starten, um die QR-Schleife zu scannen:</p>
             
             <button id="startCamBtn" class="btn btn-primary" onclick="startScanner()">📷 Kamera aktivieren</button>
             <button id="stopCamBtn" class="btn btn-back" style="display:none; margin-top:10px;" onclick="stopScanner()">Kamera stoppen</button>
@@ -149,7 +215,7 @@
                 <div id="recv-progress-fill" class="progress-bar-fill"></div>
             </div>
             <div id="receive-status" class="status-box"></div>
-            <a id="downloadBtn" class="btn btn-success" style="display:none;">💾 Empfangene Datei speichern</a>
+            <a id="downloadBtn" class="btn btn-success" style="display:none; margin-top:12px;">💾 Empfangene Datei speichern</a>
         </div>
 
         <button class="btn btn-back" onclick="window.location.href='dashboard.html'">← Zurück zum Dashboard</button>
@@ -157,9 +223,15 @@
 
     <script>
         let html5QrcodeScanner = null;
-        let qrInterval = null;
-        const CHUNK_SIZE = 400; // Sichere Größe pro QR-Chunk in Zeichen
+        let qrTimeout = null;
+        let isSending = false;
         
+        const CHUNK_SIZE = 300; // Sichere Paketgröße in Zeichen
+        let base64Chunks = [];
+        let currentChunkIndex = 0;
+        let selectedFile = null;
+        let currentFps = 15;
+
         // Empfangene Daten
         let receivedChunks = {};
         let totalChunksToReceive = 0;
@@ -176,71 +248,147 @@
             } else {
                 document.querySelectorAll('.tab-btn')[1].classList.add('active');
                 document.getElementById('receive-tab').classList.add('active');
-                stopQrAnimation();
+                stopSend();
             }
         }
 
-        // --- SENDEN (ROLLING QR-CODES) ---
-        function processFile() {
-            stopQrAnimation();
+        // --- FPS SLIDER LOGIK ---
+        function setFpsValue(val) {
+            let v = parseInt(val);
+            if (isNaN(v)) v = 15;
+            if (v < 5) v = 5;
+            if (v > 120) v = 120;
+            
+            currentFps = v;
+            document.getElementById('fpsRange').value = v;
+            document.getElementById('fpsInput').value = v;
+
+            const warningEl = document.getElementById('fpsWarning');
+            if (v > 60) {
+                warningEl.style.display = "block";
+            } else {
+                warningEl.style.display = "none";
+            }
+        }
+
+        function updateFpsFromRange(val) {
+            setFpsValue(val);
+        }
+
+        function updateFpsFromInput(val) {
+            setFpsValue(val);
+        }
+
+        // --- SENDEN LOGIK ---
+        function fileSelected() {
             const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
+            selectedFile = fileInput.files[0];
+            if (!selectedFile) return;
+
+            stopSend();
+            document.getElementById('file-label-text').innerText = selectedFile.name;
+            document.getElementById('sendBtn').style.display = "block";
+            document.getElementById('sendBtn').className = "btn btn-primary";
+            document.getElementById('sendBtn').innerText = "▶️ Übertragung starten";
+            
             const statusEl = document.getElementById('send-status');
-            const wrapperEl = document.getElementById('qr-wrapper');
-            const canvas = document.getElementById('qrcode-canvas');
-            const labelTxt = document.getElementById('file-label-text');
-            const progressBg = document.getElementById('send-progress-bg');
-            const progressFill = document.getElementById('send-progress-fill');
-
-            if (!file) return;
-
-            labelTxt.innerText = file.name;
             statusEl.className = "status-box";
-            statusEl.innerText = "Lese Datei ein...";
+            statusEl.innerText = `Bereit: "${selectedFile.name}" (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+        }
+
+        function toggleSend() {
+            if (isSending) {
+                stopSend();
+            } else {
+                startSend();
+            }
+        }
+
+        function startSend() {
+            if (!selectedFile) return;
+
+            const statusEl = document.getElementById('send-status');
+            statusEl.className = "status-box";
+            statusEl.innerText = "Verarbeite Datei...";
 
             const reader = new FileReader();
             reader.onload = function(e) {
                 const base64Data = e.target.result;
-                
-                // Datei in Stücke aufteilen
-                const totalChunks = Math.ceil(base64Data.length / CHUNK_SIZE);
-                let currentChunk = 0;
+                base64Chunks = [];
 
-                wrapperEl.style.display = "block";
-                progressBg.style.display = "block";
+                // Datei in Chunks schneiden
+                for (let i = 0; i < base64Data.length; i += CHUNK_SIZE) {
+                    base64Chunks.push(base64Data.slice(i, i + CHUNK_SIZE));
+                }
 
-                // Animation starten (wechselt alle 250ms den QR-Code)
-                qrInterval = setInterval(() => {
-                    const start = currentChunk * CHUNK_SIZE;
-                    const end = start + CHUNK_SIZE;
-                    const chunkData = base64Data.slice(start, end);
-                    
-                    // Protokoll-Format: INDEX|TOTAL|FILENAME|DATA
-                    const payload = `${currentChunk}|${totalChunks}|${encodeURIComponent(file.name)}|${chunkData}`;
+                currentChunkIndex = 0;
+                isSending = true;
 
-                    QRCode.toCanvas(canvas, payload, { width: 220, margin: 1, errorCorrectionLevel: 'L' }, function (err) {
-                        if (err) console.error(err);
-                    });
+                // UI anpassen
+                const sendBtn = document.getElementById('sendBtn');
+                sendBtn.className = "btn btn-danger";
+                sendBtn.innerText = "⏹️ Übertragung stoppen";
 
-                    // Fortschritt
-                    const pct = Math.round(((currentChunk + 1) / totalChunks) * 100);
-                    progressFill.style.width = pct + "%";
-                    statusEl.innerText = `Sende Paket ${currentChunk + 1} von ${totalChunks} (${pct}%)`;
+                document.getElementById('qr-wrapper').style.display = "block";
+                document.getElementById('send-progress-bg').style.display = "block";
 
-                    currentChunk = (currentChunk + 1) % totalChunks;
-                }, 250);
+                // Loop starten
+                renderNextQr();
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(selectedFile);
         }
 
-        function stopQrAnimation() {
-            if (qrInterval) {
-                clearInterval(qrInterval);
-                qrInterval = null;
+        function renderNextQr() {
+            if (!isSending || base64Chunks.length === 0) return;
+
+            const total = base64Chunks.length;
+            const chunkData = base64Chunks[currentChunkIndex];
+            const canvas = document.getElementById('qrcode-canvas');
+
+            // Format: INDEX|TOTAL|FILENAME|DATA
+            const payload = `${currentChunkIndex}|${total}|${encodeURIComponent(selectedFile.name)}|${chunkData}`;
+
+            QRCode.toCanvas(canvas, payload, { 
+                width: 200, 
+                margin: 1, 
+                errorCorrectionLevel: 'L' 
+            }, function (err) {
+                if (err) console.error(err);
+            });
+
+            // UI Aktualisieren
+            const pct = Math.round(((currentChunkIndex + 1) / total) * 100);
+            document.getElementById('send-progress-fill').style.width = pct + "%";
+            document.getElementById('send-status').innerText = `Sende Paket ${currentChunkIndex + 1} von ${total} (${pct}%) @ ${currentFps} FPS`;
+
+            currentChunkIndex = (currentChunkIndex + 1) % total;
+
+            // Dynamisches Interval basierend auf aktuellem FPS-Wert
+            const delay = Math.max(8, Math.floor(1000 / currentFps));
+            qrTimeout = setTimeout(renderNextQr, delay);
+        }
+
+        function stopSend() {
+            isSending = false;
+            if (qrTimeout) {
+                clearTimeout(qrTimeout);
+                qrTimeout = null;
+            }
+
+            const sendBtn = document.getElementById('sendBtn');
+            if (sendBtn) {
+                sendBtn.className = "btn btn-primary";
+                sendBtn.innerText = "▶️ Übertragung starten";
+            }
+
+            document.getElementById('qr-wrapper').style.display = "none";
+            document.getElementById('send-progress-bg').style.display = "none";
+            if (selectedFile) {
+                document.getElementById('send-status').innerText = "Übertragung gestoppt.";
             }
         }
 
-        // --- EMPFANGEN (SCHLEIFE SCANNEN & REKONSTRUIEREN) ---
+        // --- EMPFANGEN LOGIK ---
         function startScanner() {
             document.getElementById('startCamBtn').style.display = 'none';
             document.getElementById('stopCamBtn').style.display = 'block';
@@ -254,20 +402,19 @@
             document.getElementById('recv-progress-fill').style.width = '0%';
 
             html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-                fps: 15, 
-                qrbox: { width: 220, height: 220 },
+                fps: 30, // Hohe Scanner-Framerate
+                qrbox: { width: 200, height: 200 },
                 rememberLastUsedCamera: true
             });
             
             html5QrcodeScanner.render((decodedText) => {
-                // Auslesen des Protokoll-Formats
                 const parts = decodedText.split('|');
-                if (parts.length < 4) return; // Kein gültiges Paket
+                if (parts.length < 4) return;
 
                 const idx = parseInt(parts[0]);
                 const total = parseInt(parts[1]);
                 const filename = decodeURIComponent(parts[2]);
-                const data = parts.slice(3).join('|'); // Falls im Daten-String ein '|' vorkommt
+                const data = parts.slice(3).join('|');
 
                 totalChunksToReceive = total;
                 receivedFileName = filename;
@@ -280,9 +427,8 @@
                 const pct = Math.round((count / total) * 100);
                 
                 document.getElementById('recv-progress-fill').style.width = pct + "%";
-                document.getElementById('receive-status').innerText = `Pakete gesammelt: ${count} von ${total} (${pct}%)`;
+                document.getElementById('receive-status').innerText = `Pakete empfangen: ${count} von ${total} (${pct}%)`;
 
-                // Überprüfung: Alle Pakete vorhanden?
                 if (count === total) {
                     stopScanner();
                     reconstructFile();
@@ -297,7 +443,7 @@
             }
 
             document.getElementById('receive-status').className = "status-box success";
-            document.getElementById('receive-status').innerText = `✅ "${receivedFileName}" vollständig empfangen!`;
+            document.getElementById('receive-status').innerText = `✅ "${receivedFileName}" erfolgreich empfangen!`;
 
             const downloadBtn = document.getElementById('downloadBtn');
             downloadBtn.href = fullBase64;
