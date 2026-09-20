@@ -9,7 +9,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Animated QR Transfer</title>
-    <!-- Modernes QR-Code-Script & Scanner -->
+    <!-- QR-Code Engine & Scanner API -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     <script src="https://unpkg.com/html5-qrcode"></script>
     
@@ -138,6 +138,24 @@
         }
         #qrcode-canvas { display: block; max-width: 200px; height: auto; }
         
+        /* Modernized Scanner Container */
+        #scanner-container {
+            width: 100%;
+            height: 260px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: #000;
+            margin-top: 12px;
+            display: none;
+            position: relative;
+            border: 2px solid #2c2c2e;
+        }
+        #interactive-video {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: cover !important;
+        }
+
         /* Progress & Status */
         .progress-bar-bg { background: #2c2c2e; height: 8px; border-radius: 4px; overflow: hidden; margin: 12px 0 6px 0; display: none; }
         .progress-bar-fill { background: #30d158; height: 100%; width: 0%; transition: width 0.08s linear; }
@@ -146,9 +164,6 @@
         .status-box.error { color: #ff453a; font-weight: 500; }
         .status-box.success { color: #30d158; font-weight: 500; }
 
-        /* Scanner Area */
-        #reader { width: 100%; border-radius: 18px; overflow: hidden; background: #000; margin-top: 12px; }
-        
         /* Buttons */
         .btn { border: none; padding: 14px; border-radius: 14px; font-weight: 600; font-size: 15px; width: 100%; cursor: pointer; transition: opacity 0.2s; text-align: center; text-decoration: none; display: inline-block; box-sizing: border-box; }
         .btn:active { opacity: 0.75; }
@@ -209,7 +224,9 @@
             <button id="startCamBtn" class="btn btn-primary" onclick="startScanner()">📷 Kamera aktivieren</button>
             <button id="stopCamBtn" class="btn btn-back" style="display:none; margin-top:10px;" onclick="stopScanner()">Kamera stoppen</button>
             
-            <div id="reader"></div>
+            <div id="scanner-container">
+                <div id="interactive-video"></div>
+            </div>
             
             <div id="recv-progress-bg" class="progress-bar-bg">
                 <div id="recv-progress-fill" class="progress-bar-fill"></div>
@@ -222,11 +239,11 @@
     </div>
 
     <script>
-        let html5QrcodeScanner = null;
+        let html5QrCode = null;
         let qrTimeout = null;
         let isSending = false;
         
-        const CHUNK_SIZE = 250; // Sichere Paketgröße pro QR-Code
+        const CHUNK_SIZE = 200; // Optimal für schnelle Kamera-Erkennung
         let rawChunks = [];
         let currentChunkIndex = 0;
         let selectedFile = null;
@@ -288,7 +305,7 @@
             
             const statusEl = document.getElementById('send-status');
             statusEl.className = "status-box";
-            statusEl.innerText = `Bereit: "${selectedFile.name}" (${(selectedFile.size / 1024).toFixed(1)} KB)`;
+            statusEl.innerText = `Bereit: "${selectedFile.name}" (${(selectedFile.size / 1024).toFixed(2)} KB)`;
         }
 
         function toggleSend() {
@@ -306,38 +323,40 @@
             statusEl.className = "status-box";
             statusEl.innerText = "Lese Datei...";
 
-            // Sicheres DataURL-Einlesen
             const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const dataUrl = e.target.result; // Enthält Base64 + MIME-Type
-                    rawChunks = [];
-
-                    // DataURL direkt in Blöcke schneiden
-                    for (let i = 0; i < dataUrl.length; i += CHUNK_SIZE) {
-                        rawChunks.push(dataUrl.slice(i, i + CHUNK_SIZE));
-                    }
-
-                    currentChunkIndex = 0;
-                    isSending = true;
-
-                    // UI Anpassen
-                    const sendBtn = document.getElementById('sendBtn');
-                    sendBtn.className = "btn btn-danger";
-                    sendBtn.innerText = "⏹️ Übertragung stoppen";
-
-                    document.getElementById('qr-wrapper').style.display = "block";
-                    document.getElementById('send-progress-bg').style.display = "block";
-
-                    // Start der Animation
-                    renderNextQr();
-                } catch (err) {
-                    console.error(err);
-                    statusEl.className = "status-box error";
-                    statusEl.innerText = "Fehler beim Verarbeiten der Datei.";
-                }
+            
+            reader.onerror = function() {
+                statusEl.className = "status-box error";
+                statusEl.innerText = "Fehler beim Lesen der Datei.";
             };
 
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                if (!dataUrl) {
+                    statusEl.className = "status-box error";
+                    statusEl.innerText = "Datei konnte nicht verarbeitet werden.";
+                    return;
+                }
+
+                rawChunks = [];
+                for (let i = 0; i < dataUrl.length; i += CHUNK_SIZE) {
+                    rawChunks.push(dataUrl.slice(i, i + CHUNK_SIZE));
+                }
+
+                currentChunkIndex = 0;
+                isSending = true;
+
+                const sendBtn = document.getElementById('sendBtn');
+                sendBtn.className = "btn btn-danger";
+                sendBtn.innerText = "⏹️ Übertragung stoppen";
+
+                document.getElementById('qr-wrapper').style.display = "block";
+                document.getElementById('send-progress-bg').style.display = "block";
+
+                renderNextQr();
+            };
+
+            // Startet das Einlesen
             reader.readAsDataURL(selectedFile);
         }
 
@@ -348,7 +367,7 @@
             const chunkData = rawChunks[currentChunkIndex];
             const canvas = document.getElementById('qrcode-canvas');
 
-            // Format: INDEX|TOTAL|FILENAME|DATA
+            // Payload: INDEX|TOTAL|FILENAME|DATA
             const payload = `${currentChunkIndex}|${total}|${encodeURIComponent(selectedFile.name)}|${chunkData}`;
 
             QRCode.toCanvas(canvas, payload, { 
@@ -356,17 +375,15 @@
                 margin: 1, 
                 errorCorrectionLevel: 'L' 
             }, function (err) {
-                if (err) console.error("QR Rendering Error:", err);
+                if (err) console.error("QR Error:", err);
             });
 
-            // UI Aktualisieren
             const pct = Math.round(((currentChunkIndex + 1) / total) * 100);
             document.getElementById('send-progress-fill').style.width = pct + "%";
             document.getElementById('send-status').innerText = `Sende Paket ${currentChunkIndex + 1} von ${total} (${pct}%) @ ${currentFps} FPS`;
 
             currentChunkIndex = (currentChunkIndex + 1) % total;
 
-            // Nächster Frame mit aktueller FPS-Verzögerung
             const delay = Math.max(8, Math.floor(1000 / currentFps));
             qrTimeout = setTimeout(renderNextQr, delay);
         }
@@ -391,10 +408,11 @@
             }
         }
 
-        // --- EMPFANGEN LOGIK ---
+        // --- EMPFANGEN LOGIK (Clean Camera UI) ---
         function startScanner() {
             document.getElementById('startCamBtn').style.display = 'none';
             document.getElementById('stopCamBtn').style.display = 'block';
+            document.getElementById('scanner-container').style.display = 'block';
             document.getElementById('receive-status').className = "status-box";
             document.getElementById('receive-status').innerText = "Kamera sucht QR-Codes...";
             
@@ -404,39 +422,46 @@
             document.getElementById('recv-progress-bg').style.display = 'block';
             document.getElementById('recv-progress-fill').style.width = '0%';
 
-            html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-                fps: 30, 
-                qrbox: { width: 200, height: 200 },
-                rememberLastUsedCamera: true
-            });
+            html5QrCode = new Html5Qrcode("interactive-video");
             
-            html5QrcodeScanner.render((decodedText) => {
-                const parts = decodedText.split('|');
-                if (parts.length < 4) return;
+            const config = { fps: 30, qrbox: { width: 220, height: 220 } };
 
-                const idx = parseInt(parts[0]);
-                const total = parseInt(parts[1]);
-                const filename = decodeURIComponent(parts[2]);
-                const data = parts.slice(3).join('|');
+            html5QrCode.start(
+                { facingMode: "environment" }, 
+                config, 
+                (decodedText) => {
+                    const parts = decodedText.split('|');
+                    if (parts.length < 4) return;
 
-                totalChunksToReceive = total;
-                receivedFileName = filename;
+                    const idx = parseInt(parts[0]);
+                    const total = parseInt(parts[1]);
+                    const filename = decodeURIComponent(parts[2]);
+                    const data = parts.slice(3).join('|');
 
-                if (!receivedChunks[idx]) {
-                    receivedChunks[idx] = data;
-                }
+                    totalChunksToReceive = total;
+                    receivedFileName = filename;
 
-                const count = Object.keys(receivedChunks).length;
-                const pct = Math.round((count / total) * 100);
-                
-                document.getElementById('recv-progress-fill').style.width = pct + "%";
-                document.getElementById('receive-status').innerText = `Pakete empfangen: ${count} von ${total} (${pct}%)`;
+                    if (!receivedChunks[idx]) {
+                        receivedChunks[idx] = data;
+                    }
 
-                if (count === total) {
-                    stopScanner();
-                    reconstructFile();
-                }
-            }, (err) => {});
+                    const count = Object.keys(receivedChunks).length;
+                    const pct = Math.round((count / total) * 100);
+                    
+                    document.getElementById('recv-progress-fill').style.width = pct + "%";
+                    document.getElementById('receive-status').innerText = `Pakete empfangen: ${count} von ${total} (${pct}%)`;
+
+                    if (count === total) {
+                        stopScanner();
+                        reconstructFile();
+                    }
+                },
+                (errorMessage) => { /* Stille Fehler unterdrücken */ }
+            ).catch(err => {
+                console.error(err);
+                document.getElementById('receive-status').className = "status-box error";
+                document.getElementById('receive-status').innerText = "Kamera konnte nicht gestartet werden.";
+            });
         }
 
         function reconstructFile() {
@@ -455,10 +480,13 @@
         }
 
         function stopScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.clear().catch(err => console.error(err));
-                html5QrcodeScanner = null;
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                }).catch(err => console.error(err));
             }
+            document.getElementById('scanner-container').style.display = 'none';
             document.getElementById('startCamBtn').style.display = 'block';
             document.getElementById('stopCamBtn').style.display = 'none';
         }
