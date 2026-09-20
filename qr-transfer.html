@@ -140,7 +140,7 @@
         
         /* Progress & Status */
         .progress-bar-bg { background: #2c2c2e; height: 8px; border-radius: 4px; overflow: hidden; margin: 12px 0 6px 0; display: none; }
-        .progress-bar-fill { background: #30d158; height: 100%; width: 0%; transition: width 0.1s linear; }
+        .progress-bar-fill { background: #30d158; height: 100%; width: 0%; transition: width 0.08s linear; }
         
         .status-box { font-size: 13px; color: #8e8e93; text-align: center; margin-top: 8px; line-height: 1.4; word-break: break-word; }
         .status-box.error { color: #ff453a; font-weight: 500; }
@@ -226,8 +226,9 @@
         let qrTimeout = null;
         let isSending = false;
         
-        const CHUNK_SIZE = 300; // Sichere Paketgröße in Zeichen
-        let base64Chunks = [];
+        // Optimierte Paketgröße für beste Performance
+        const CHUNK_SIZE = 350; 
+        let rawChunks = [];
         let currentChunkIndex = 0;
         let selectedFile = null;
         let currentFps = 15;
@@ -236,6 +237,7 @@
         let receivedChunks = {};
         let totalChunksToReceive = 0;
         let receivedFileName = "datei";
+        let receivedMimeType = "application/octet-stream";
 
         function switchTab(tab) {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -271,13 +273,8 @@
             }
         }
 
-        function updateFpsFromRange(val) {
-            setFpsValue(val);
-        }
-
-        function updateFpsFromInput(val) {
-            setFpsValue(val);
-        }
+        function updateFpsFromRange(val) { setFpsValue(val); }
+        function updateFpsFromInput(val) { setFpsValue(val); }
 
         // --- SENDEN LOGIK ---
         function fileSelected() {
@@ -309,22 +306,29 @@
 
             const statusEl = document.getElementById('send-status');
             statusEl.className = "status-box";
-            statusEl.innerText = "Verarbeite Datei...";
+            statusEl.innerText = "Bereite blitzschnelle Übertragung vor...";
 
+            // Hocheffizientes Binär-Lesen ohne Speichersperre
             const reader = new FileReader();
             reader.onload = function(e) {
-                const base64Data = e.target.result;
-                base64Chunks = [];
+                const buffer = new Uint8Array(e.target.result);
+                rawChunks = [];
 
-                // Datei in Chunks schneiden
-                for (let i = 0; i < base64Data.length; i += CHUNK_SIZE) {
-                    base64Chunks.push(base64Data.slice(i, i + CHUNK_SIZE));
+                // Binärdaten direkt in Base64 Chunks packen
+                let binaryString = "";
+                for (let i = 0; i < buffer.length; i++) {
+                    binaryString += String.fromCharCode(buffer[i]);
+                }
+                const fullBase64 = btoa(binaryString);
+
+                for (let i = 0; i < fullBase64.length; i += CHUNK_SIZE) {
+                    rawChunks.push(fullBase64.slice(i, i + CHUNK_SIZE));
                 }
 
                 currentChunkIndex = 0;
                 isSending = true;
 
-                // UI anpassen
+                // UI Anpassen
                 const sendBtn = document.getElementById('sendBtn');
                 sendBtn.className = "btn btn-danger";
                 sendBtn.innerText = "⏹️ Übertragung stoppen";
@@ -335,18 +339,21 @@
                 // Loop starten
                 renderNextQr();
             };
-            reader.readAsDataURL(selectedFile);
+
+            // Startet das Lesen als ArrayBuffer
+            reader.readAsArrayBuffer(selectedFile);
         }
 
         function renderNextQr() {
-            if (!isSending || base64Chunks.length === 0) return;
+            if (!isSending || rawChunks.length === 0) return;
 
-            const total = base64Chunks.length;
-            const chunkData = base64Chunks[currentChunkIndex];
+            const total = rawChunks.length;
+            const chunkData = rawChunks[currentChunkIndex];
             const canvas = document.getElementById('qrcode-canvas');
 
-            // Format: INDEX|TOTAL|FILENAME|DATA
-            const payload = `${currentChunkIndex}|${total}|${encodeURIComponent(selectedFile.name)}|${chunkData}`;
+            // Format: INDEX|TOTAL|FILENAME|TYPE|DATA
+            const mimeType = selectedFile.type || "application/octet-stream";
+            const payload = `${currentChunkIndex}|${total}|${encodeURIComponent(selectedFile.name)}|${encodeURIComponent(mimeType)}|${chunkData}`;
 
             QRCode.toCanvas(canvas, payload, { 
                 width: 200, 
@@ -363,8 +370,8 @@
 
             currentChunkIndex = (currentChunkIndex + 1) % total;
 
-            // Dynamisches Interval basierend auf aktuellem FPS-Wert
-            const delay = Math.max(8, Math.floor(1000 / currentFps));
+            // Framerate Anpassen
+            const delay = Math.max(5, Math.floor(1000 / currentFps));
             qrTimeout = setTimeout(renderNextQr, delay);
         }
 
@@ -402,22 +409,24 @@
             document.getElementById('recv-progress-fill').style.width = '0%';
 
             html5QrcodeScanner = new Html5QrcodeScanner("reader", { 
-                fps: 30, // Hohe Scanner-Framerate
+                fps: 30, 
                 qrbox: { width: 200, height: 200 },
                 rememberLastUsedCamera: true
             });
             
             html5QrcodeScanner.render((decodedText) => {
                 const parts = decodedText.split('|');
-                if (parts.length < 4) return;
+                if (parts.length < 5) return;
 
                 const idx = parseInt(parts[0]);
                 const total = parseInt(parts[1]);
                 const filename = decodeURIComponent(parts[2]);
-                const data = parts.slice(3).join('|');
+                const mimeType = decodeURIComponent(parts[3]);
+                const data = parts.slice(4).join('|');
 
                 totalChunksToReceive = total;
                 receivedFileName = filename;
+                receivedMimeType = mimeType;
 
                 if (!receivedChunks[idx]) {
                     receivedChunks[idx] = data;
@@ -445,8 +454,9 @@
             document.getElementById('receive-status').className = "status-box success";
             document.getElementById('receive-status').innerText = `✅ "${receivedFileName}" erfolgreich empfangen!`;
 
+            const dataUrl = `data:${receivedMimeType};base64,${fullBase64}`;
             const downloadBtn = document.getElementById('downloadBtn');
-            downloadBtn.href = fullBase64;
+            downloadBtn.href = dataUrl;
             downloadBtn.download = receivedFileName;
             downloadBtn.style.display = "block";
         }
