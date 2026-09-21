@@ -9,12 +9,14 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #09090b; color: #f4f4f5; height: 100vh; overflow: hidden; display: flex; }
 
-        /* App Container Layout */
         .app-layout { display: flex; width: 100vw; height: 100vh; }
 
-        /* Links: Seitenleiste mit allen Einstellungen */
+        /* Links: Seitenleiste */
         .sidebar { width: 360px; min-width: 320px; background: #121215; border-right: 1px solid #27272a; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; overflow-y: auto; }
         
+        .nav-back { display: inline-flex; align-items: center; gap: 6px; color: #a1a1aa; text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 16px; transition: color 0.2s; }
+        .nav-back:hover { color: #3b82f6; }
+
         .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 1px solid #27272a; }
         .globe-icon { width: 28px; height: 28px; fill: none; stroke: #3b82f6; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .brand h1 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.5px; }
@@ -24,7 +26,6 @@
         .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #a1a1aa; font-weight: 600; font-size: 14px; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
         .tab-btn.active { background: #27272a; color: #fff; }
 
-        /* Einstellungs-Formular */
         .control-section { display: flex; flex-direction: column; gap: 20px; }
         
         .file-label { display: block; background: #18181b; color: #3b82f6; text-align: center; padding: 14px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; border: 1px dashed #3b82f6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; transition: background 0.2s; }
@@ -37,10 +38,8 @@
         .val-disp { font-size: 13px; font-weight: 700; color: #3b82f6; }
         input[type="range"] { width: 100%; accent-color: #3b82f6; margin-top: 4px; cursor: pointer; }
 
-        /* Angepasste Schriftgröße der Warnungen */
         .warning-box { font-size: 12px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 8px 10px; border-radius: 6px; margin-top: 8px; display: none; line-height: 1.4; }
 
-        /* Buttons */
         .btn-group { display: flex; gap: 10px; margin-top: 10px; }
         .btn { flex: 1; background: #2563eb; color: #fff; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
         .btn:hover { background: #1d4ed8; }
@@ -52,9 +51,8 @@
         .logout-btn { width: 100%; background: transparent; color: #a1a1aa; border: 1px solid #27272a; padding: 10px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; margin-top: 20px; }
         .logout-btn:hover { background: #18181b; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
 
-        /* Rechts: Anzeige & Vorschau-Bereich */
+        /* Rechts: Hauptbereich */
         .main-content { flex: 1; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; padding: 20px; }
-
         .display-container { width: 100%; height: 100%; max-width: 80vh; max-height: 80vh; display: flex; justify-content: center; align-items: center; position: relative; }
         
         canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; border-radius: 8px; box-shadow: 0 0 40px rgba(0, 0, 0, 0.8); }
@@ -80,9 +78,10 @@
     </script>
 
     <div class="app-layout">
-        <!-- LINKSE SEITENLEISTE (Einstellungen & Steuerung) -->
         <div class="sidebar">
             <div>
+                <a href="apps.html" class="nav-back">← Menü</a>
+
                 <div class="brand">
                     <svg class="globe-icon" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10"></circle>
@@ -92,13 +91,11 @@
                     <h1>Color Matrix Transfer</h1>
                 </div>
 
-                <!-- Modus Tabs -->
                 <div class="tab-bar">
                     <button class="tab-btn active" id="tab-btn-send" onclick="switchTab('send')">Senden</button>
                     <button class="tab-btn" id="tab-btn-receive" onclick="switchTab('receive')">Empfangen</button>
                 </div>
 
-                <!-- SENDEN EINSTELLUNGEN -->
                 <div id="tab-send" class="tab-content active">
                     <label class="file-label" id="fileLabel" for="fileInput">📁 Datei auswählen</label>
                     <input type="file" id="fileInput" onchange="handleFileSelect(event)">
@@ -127,7 +124,6 @@
                     </div>
                 </div>
 
-                <!-- EMPFANGEN EINSTELLUNGEN -->
                 <div id="tab-receive" class="tab-content">
                     <div class="btn-group">
                         <button class="btn" onclick="startCamera()">📷 Kamera Starten</button>
@@ -139,13 +135,9 @@
             <button class="logout-btn" onclick="logout()">Abmelden</button>
         </div>
 
-        <!-- RECHTER BEREICH (Code / Matrix Canvas Vorschau) -->
         <div class="main-content">
             <div class="display-container">
-                <!-- Senden Canvas -->
                 <canvas id="matrixCanvas" width="600" height="600" style="display: block;"></canvas>
-                
-                <!-- Empfangen Video -->
                 <video id="webcam" autoplay playsinline style="display: none;"></video>
                 <div id="cameraOverlay" class="camera-overlay" style="display: none;"></div>
             </div>
@@ -201,14 +193,10 @@
         function updateControls() {
             const gridSize = parseInt(document.getElementById('gridSize').value);
             document.getElementById('gridVal').innerText = gridSize + 'x' + gridSize;
-            
-            // Grid-Warnung ab 31x30
             document.getElementById('gridWarning').style.display = gridSize >= 31 ? 'block' : 'none';
 
             const fps = parseInt(document.getElementById('fpsSpeed').value);
             document.getElementById('fpsVal').innerText = fps + ' FPS';
-
-            // FPS-Warnung ab 31 FPS
             document.getElementById('fpsWarning').style.display = fps >= 31 ? 'block' : 'none';
 
             if (fileData && activeTab === 'send') drawFrame(frameIndex);
