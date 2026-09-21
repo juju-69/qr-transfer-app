@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Private Dashboard</title>
+    <title>Private Dashboard</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
     <style>
         * { box-sizing: border-box; }
@@ -30,10 +30,13 @@
 
         /* Regler */
         .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-        .control-group { background: #18181b; padding: 10px; border-radius: 10px; border: 1px solid #27272a; }
+        .control-group { background: #18181b; padding: 10px; border-radius: 10px; border: 1px solid #27272a; display: flex; flex-direction: column; justify-content: space-between; }
         label { display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px; font-weight: 600; }
         input[type="range"] { width: 100%; accent-color: #3b82f6; }
         .val-disp { font-size: 13px; font-weight: 700; color: #3b82f6; float: right; }
+        
+        /* Warntext für hohe FPS */
+        .fps-warning { font-size: 10px; color: #71717a; margin-top: 4px; display: none; line-height: 1.2; }
 
         /* Display (Matrix Canvas / Kamera) */
         .display-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 12px; overflow: hidden; display: flex; justify-content: center; align-items: center; border: 1px solid #27272a; margin-bottom: 16px; }
@@ -81,12 +84,17 @@
 
             <div class="controls">
                 <div class="control-group">
-                    <label>Grid Size <span id="gridVal" class="val-disp">16x16</span></label>
-                    <input type="range" id="gridSize" min="8" max="32" step="2" value="16" oninput="updateControls()">
+                    <div>
+                        <label>Grid Size <span id="gridVal" class="val-disp">16x16</span></label>
+                        <input type="range" id="gridSize" min="8" max="32" step="2" value="16" oninput="updateControls()">
+                    </div>
                 </div>
                 <div class="control-group">
-                    <label>FPS Speed <span id="fpsVal" class="val-disp">12 FPS</span></label>
-                    <input type="range" id="fpsSpeed" min="1" max="30" value="12" oninput="updateControls()">
+                    <div>
+                        <label>FPS Speed <span id="fpsVal" class="val-disp">12 FPS</span></label>
+                        <input type="range" id="fpsSpeed" min="1" max="60" value="12" oninput="updateControls()">
+                    </div>
+                    <div id="fpsWarning" class="fps-warning">⚠️ Hohe FPS-Raten können zu Erkennungsfehlern oder Frame-Dropouts führen.</div>
                 </div>
             </div>
 
@@ -146,7 +154,18 @@
 
         function updateControls() {
             document.getElementById('gridVal').innerText = document.getElementById('gridSize').value + 'x' + document.getElementById('gridSize').value;
-            document.getElementById('fpsVal').innerText = document.getElementById('fpsSpeed').value + ' FPS';
+            
+            const fps = parseInt(document.getElementById('fpsSpeed').value);
+            document.getElementById('fpsVal').innerText = fps + ' FPS';
+
+            // Warnung ab 31 FPS ein- oder ausblenden
+            const warningEl = document.getElementById('fpsWarning');
+            if (fps >= 31) {
+                warningEl.style.display = 'block';
+            } else {
+                warningEl.style.display = 'none';
+            }
+
             if (fileData) drawFrame(frameIndex);
         }
 
