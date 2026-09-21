@@ -3,18 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Zugangsschutz</title>
+    <title>🔒 Zugangsschutz</title>
+    <!-- Favicon mit Schlosssymbol für den Browser-Tab -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
     <style>
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .card { background: #1c1c1e; padding: 32px 24px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 360px; border: 1px solid #2c2c2e; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        .card { background: rgba(28, 28, 30, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 32px 24px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 360px; border: 1px solid rgba(255,255,255,0.1); }
         .icon { font-size: 48px; margin-bottom: 12px; }
         h2 { margin: 0 0 8px 0; font-weight: 700; font-size: 22px; }
         p { color: #8e8e93; font-size: 14px; margin: 0 0 24px 0; }
-        input { width: 100%; padding: 14px; margin-bottom: 12px; background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; font-size: 16px; color: #fff; text-align: center; outline: none; }
+        input { width: 100%; padding: 14px; margin-bottom: 12px; background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; font-size: 16px; color: #fff; text-align: center; outline: none; transition: border-color 0.2s; }
         input:focus { border-color: #0a84ff; }
-        button { background: #0a84ff; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; width: 100%; transition: opacity 0.2s; }
-        button:active { opacity: 0.8; }
+        button { background: #0a84ff; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; width: 100%; transition: opacity 0.2s, transform 0.1s; }
+        button:active { opacity: 0.8; transform: scale(0.98); }
         .error { color: #ff453a; font-size: 13px; margin-top: 12px; display: none; }
     </style>
 </head>
@@ -24,18 +26,27 @@
         <div class="icon">🔒</div>
         <h2>Private Apps</h2>
         <p>Bitte Zugangsschlüssel eingeben</p>
-        <input type="password" id="passkey" placeholder="Passwort">
+        <input type="password" id="passkey" placeholder="Passwort" onkeypress="if(event.key==='Enter') unlock()">
         <button onclick="unlock()">Freischalten</button>
         <div id="err" class="error">Falsches Passwort!</div>
     </div>
 
     <script>
-        // Dein neues Passwort:
-        const SECRET_KEY = "Appsbyju19906305"; 
+        // Der SHA-256 Hash für "Appsbyju19906305"
+        const SECRET_HASH = "8ba7b3dbd4a13d78c005b68233a36db5ad11beff0e49be88a10bc30fbd9e2051";
 
-        function unlock() {
+        async function hashString(str) {
+            const buffer = new TextEncoder().encode(str);
+            const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        async function unlock() {
             const input = document.getElementById("passkey").value;
-            if (input === SECRET_KEY) {
+            const inputHash = await hashString(input);
+
+            if (inputHash === SECRET_HASH) {
                 localStorage.setItem("app_unlocked", "true");
                 window.location.href = "dashboard.html";
             } else {
