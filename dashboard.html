@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Private Dashboard</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
+    <title>Dashboard</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌐</text></svg>">
     <style>
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; margin: 0; padding: 12px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
@@ -13,8 +13,11 @@
 
         /* Navigation Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .header-title-container { display: flex; align-items: center; gap: 10px; }
+        .globe-icon { width: 24px; height: 24px; fill: none; stroke: #e4e4e7; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         .header h1 { font-size: 18px; font-weight: 700; margin: 0; }
-        .logout-btn { background: rgba(255, 69, 58, 0.15); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.3); padding: 6px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .logout-btn { background: rgba(255, 255, 255, 0.1); color: #e4e4e7; border: 1px solid rgba(255, 255, 255, 0.2); padding: 6px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .logout-btn:hover { background: rgba(255, 255, 255, 0.2); }
 
         /* Modus Tabs (Senden / Empfangen) */
         .tab-bar { display: flex; background: #27272a; padding: 4px; border-radius: 12px; margin-bottom: 16px; }
@@ -67,8 +70,16 @@
 
     <div class="container">
         <div class="header">
-            <h1>Color Matrix Transfer</h1>
-            <button class="logout-btn" onclick="logout()">🔒 Sperren</button>
+            <div class="header-title-container">
+                <!-- Globus SVG Icon -->
+                <svg class="globe-icon" viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <path d="M2 12h20"></path>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                </svg>
+                <h1>Color Matrix Transfer</h1>
+            </div>
+            <button class="logout-btn" onclick="logout()">Abmelden</button>
         </div>
 
         <!-- MODUS TABS (Senden / Empfangen) -->
