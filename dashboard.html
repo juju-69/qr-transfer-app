@@ -8,31 +8,54 @@
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
     <style>
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
-        .header { width: 100%; max-width: 500px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        h1 { font-size: 20px; font-weight: 600; margin: 0; }
-        .logout-btn { background: #2c2c2e; color: #ff453a; border: none; padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
         
-        .container { width: 100%; max-width: 500px; background: #1c1c1e; border-radius: 24px; padding: 20px; border: 1px solid rgba(255,255,255,0.1); }
+        .header { width: 100%; max-width: 600px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        h1 { font-size: 22px; font-weight: 700; margin: 0; }
+        .logout-btn { background: rgba(255, 69, 58, 0.2); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.4); padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; backdrop-filter: blur(10px); }
         
-        /* Modernes Kamera-Layout */
-        .camera-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 20px; overflow: hidden; display: flex; justify-content: center; align-items: center; margin-bottom: 20px; }
+        .main-card { width: 100%; max-width: 600px; background: #1c1c1e; border-radius: 24px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* Tabs für Senden / Empfangen */
+        .tab-bar { display: flex; background: #2c2c2e; padding: 4px; border-radius: 14px; margin-bottom: 20px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #8e8e93; font-weight: 600; font-size: 15px; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
+        .tab-btn.active { background: #636366; color: #fff; }
+        
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Steuerung & Regler */
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+        .control-group { background: #2c2c2e; padding: 12px; border-radius: 12px; }
+        label { display: block; font-size: 12px; color: #8e8e93; margin-bottom: 6px; font-weight: 600; }
+        input[type="range"] { width: 100%; }
+        .val-disp { font-size: 14px; font-weight: 700; color: #0a84ff; float: right; }
+
+        /* Matrix-Anzeige (Sender) */
+        .matrix-box { width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; border: 1px solid #3a3a3c; }
+        canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+
+        /* Kamera-Anzeige (Empfänger) */
+        .camera-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; border: 1px solid #3a3a3c; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        
-        /* iOS Kamera Fokus-Rahmen */
-        .camera-overlay { position: absolute; width: 70%; height: 70%; border: 2px dashed rgba(255, 255, 255, 0.6); border-radius: 16px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4); }
-        
-        .btn-primary { background: #0a84ff; color: white; border: none; padding: 14px; border-radius: 14px; font-size: 16px; font-weight: 600; width: 100%; cursor: pointer; }
+        .camera-overlay { position: absolute; width: 75%; height: 75%; border: 2px dashed rgba(255, 255, 255, 0.7); border-radius: 20px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+
+        /* Buttons & Progress */
+        input[type="file"] { display: none; }
+        .file-label { display: block; background: #2c2c2e; color: #0a84ff; text-align: center; padding: 14px; border-radius: 14px; font-weight: 600; cursor: pointer; border: 1px dashed #0a84ff; margin-bottom: 16px; }
+        .btn { width: 100%; background: #0a84ff; color: #fff; border: none; padding: 14px; border-radius: 14px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .progress-bar { width: 100%; background: #2c2c2e; height: 10px; border-radius: 5px; margin-top: 16px; overflow: hidden; display: none; }
+        .progress-fill { width: 0%; height: 100%; background: #30d158; transition: width 0.1s; }
+        .status-text { font-size: 13px; color: #8e8e93; text-align: center; margin-top: 8px; }
     </style>
 </head>
 <body>
 
     <script>
-        // Sicherheits-Check: Zurückwerfen, falls nicht eingeloggt
+        // Sicherheits-Check
         if (localStorage.getItem("app_unlocked") !== "true") {
             window.location.href = "index.html";
         }
-
         function logout() {
             localStorage.removeItem("app_unlocked");
             window.location.href = "index.html";
@@ -40,31 +63,91 @@
     </script>
 
     <div class="header">
-        <h1>Dashboard</h1>
+        <h1>Private Dashboard</h1>
         <button class="logout-btn" onclick="logout()">Sperren</button>
     </div>
 
-    <div class="container">
-        <div class="camera-box">
-            <video id="webcam" autoplay playsinline></video>
-            <div class="camera-overlay"></div>
+    <div class="main-card">
+        <div class="tab-bar">
+            <button class="tab-btn active" onclick="switchTab('send')">Senden</button>
+            <button class="tab-btn" onclick="switchTab('receive')">Empfangen</button>
         </div>
-        <button class="btn-primary" onclick="startCamera()">Kamera aktivieren</button>
+
+        <!-- TAB: SENDEN -->
+        <div id="tab-send" class="tab-content active">
+            <label class="file-label" for="fileInput">📁 Datei zum Übertragen auswählen</label>
+            <input type="file" id="fileInput" onchange="handleFileSelect(event)">
+
+            <div class="controls">
+                <div class="control-group">
+                    <label>Grid Size <span id="gridVal" class="val-disp">16x16</span></label>
+                    <input type="range" id="gridSize" min="8" max="30" step="2" value="16" oninput="updateControls()">
+                </div>
+                <div class="control-group">
+                    <label>FPS Speed <span id="fpsVal" class="val-disp">12 FPS</span></label>
+                    <input type="range" id="fpsSpeed" min="1" max="30" value="12" oninput="updateControls()">
+                </div>
+            </div>
+
+            <div class="matrix-box">
+                <canvas id="matrixCanvas" width="400" height="400"></canvas>
+            </div>
+            <div class="status-text" id="sendStatus">Keine Datei ausgewählt</div>
+        </div>
+
+        <!-- TAB: EMPFANGEN -->
+        <div id="tab-receive" class="tab-content">
+            <div class="camera-box">
+                <video id="webcam" autoplay playsinline></video>
+                <div class="camera-overlay"></div>
+            </div>
+            <button class="btn" style="margin-top: 16px;" onclick="startCamera()">Kamera aktivieren</button>
+            
+            <div class="progress-bar" id="progressBar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status-text" id="receiveStatus">Bereit zum Scannen</div>
+        </div>
     </div>
 
     <script>
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            if(tab === 'send') {
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+                document.getElementById('tab-send').classList.add('active');
+            } else {
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+                document.getElementById('tab-receive').classList.add('active');
+            }
+        }
+
+        function updateControls() {
+            document.getElementById('gridVal').innerText = document.getElementById('gridSize').value + 'x' + document.getElementById('gridSize').value;
+            document.getElementById('fpsVal').innerText = document.getElementById('fpsSpeed').value + ' FPS';
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                document.getElementById('sendStatus').innerText = `Datei geladen: ${file.name} (${Math.round(file.size/1024)} KB)`;
+                // Hier startet deine Color-Matrix-Render-Logik für die Datei
+            }
+        }
+
         async function startCamera() {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
                     video: { facingMode: "environment" }
                 });
-                const video = document.getElementById("webcam");
-                video.srcObject = stream;
+                document.getElementById("webcam").srcObject = stream;
+                document.getElementById("receiveStatus").innerText = "Suche nach Color-Matrix...";
+                document.getElementById("progressBar").style.display = "block";
             } catch (err) {
-                alert("Kamera konnte nicht gestartet werden. Bitte stelle sicher, dass du HTTPS nutzt und die Berechtigung erteilt hast.");
+                alert("Kamera-Zugriff fehlgeschlagen. Bitte stelle sicher, dass du HTTPS aufgerufen hast.");
             }
         }
     </script>
-
 </body>
 </html>
