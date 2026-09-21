@@ -41,7 +41,7 @@
         .warning-box { font-size: 11px; color: #f59e0b; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 8px; border-radius: 6px; margin-top: 6px; display: none; line-height: 1.3; }
 
         .btn-group { display: flex; gap: 8px; margin-top: 8px; }
-        .btn { flex: 1; background: #2563eb; color: #fff; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+        .btn { flex: 1; background: #2563eb; color: #fff; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.2s; text-align: center; display: inline-block; text-decoration: none; }
         .btn:hover { background: #1d4ed8; }
         .btn-stop { background: #dc2626; }
         .btn-stop:hover { background: #b91c1c; }
@@ -64,7 +64,6 @@
         .tab-content { display: none; width: 100%; }
         .tab-content.active { display: flex; flex-direction: column; gap: 12px; }
 
-        /* Empfangenes Ergebnis Download Box */
         .receive-result { margin-top: 12px; background: #18181b; padding: 12px; border-radius: 10px; border: 1px solid #27272a; display: none; text-align: center; }
 
         /* GLOBAL DROPZONE OVERLAY */
@@ -167,7 +166,7 @@
 
                     <div id="receiveResultBox" class="receive-result">
                         <p id="recStatusInfo" style="font-size: 12px; margin-bottom: 8px; color: #a1a1aa;">Keine Daten empfangen</p>
-                        <a id="downloadLink" style="display:none;" class="btn" style="text-decoration:none; padding:8px; display:block;">📥 Datei Herunterladen</a>
+                        <a id="downloadLink" style="display:none;" class="btn">📥 Datei Herunterladen</a>
                     </div>
                 </div>
             </div>
@@ -186,7 +185,6 @@
         </div>
     </div>
 
-    <!-- Versteckter Canvas zum Auslesen des Kamera-Videostreams -->
     <canvas id="processingCanvas" width="300" height="300" style="display: none;"></canvas>
 
     <script>
@@ -374,7 +372,13 @@
                 drawFrame(frameIndex);
                 document.getElementById('statusText').innerText = `Übertragung läuft... Frame ${frameIndex + 1} / ${totalFrames}`;
 
-                frameIndex = (frameIndex + 1) % totalFrames;
+                // Nächster Frame oder automatischer Stopp nach dem letzten Frame
+                frameIndex++;
+                if (frameIndex >= totalFrames) {
+                    stopTransmission();
+                    document.getElementById('statusText').innerText = `Übertragung beendet (${totalFrames} Frames gesendet).`;
+                    return;
+                }
 
                 const fps = parseInt(document.getElementById('fpsSpeed').value);
                 animationTimer = setTimeout(loop, 1000 / fps);
@@ -386,9 +390,6 @@
         function stopTransmission() {
             isTransmitting = false;
             if (animationTimer) clearTimeout(animationTimer);
-            if (activeTab === 'send') {
-                document.getElementById('statusText').innerText = "Übertragung gestoppt";
-            }
         }
 
         async function startCamera() {
@@ -403,7 +404,7 @@
                 isReceiving = true;
                 receivedBytes = [];
                 document.getElementById('receiveResultBox').style.display = 'block';
-                document.getElementById('recStatusInfo').innerText = "Scanne Matrix-Frames...";
+                document.getElementById('recStatusInfo').innerText = "Warte auf Matrix-Signale...";
 
                 startReceivingLoop();
             } catch (err) {
@@ -425,7 +426,6 @@
             }
         }
 
-        /* ECHTHEITS- UND FARB-ERKENNUNG DER KAMERA */
         function startReceivingLoop() {
             const video = document.getElementById("webcam");
             const procCanvas = document.getElementById("processingCanvas");
@@ -436,7 +436,6 @@
 
                 const gridSize = parseInt(document.getElementById('recGridSize').value);
                 
-                // Wir zeichnen das zentrale 75% Quadrat des Videos in unseren Analyse-Canvas
                 const vWidth = video.videoWidth;
                 const vHeight = video.videoHeight;
                 const cropSize = Math.min(vWidth, vHeight) * 0.75;
@@ -459,7 +458,6 @@
                         const g = pixels[offset + 1];
                         const b = pixels[offset + 2];
 
-                        // Finde die ähnlichste Farbe aus der COLOR_PALETTE
                         let closestPaletteIdx = 0;
                         let minDistance = Infinity;
 
@@ -475,17 +473,13 @@
                     }
                 }
 
-                // Erkennungstest: Wenn der Frame nicht komplett schwarz ist, als Daten werten
                 const hasContent = frameDataBytes.some(val => val !== 0);
                 if (hasContent) {
-                    // Wir hängen die erkannten Bytes an den Empfangs-Puffer an
-                    // (In einer echten Übertragung würde hier noch Frame-Sync / Header stehen)
                     for (let bVal of frameDataBytes) {
                         receivedBytes.push(bVal);
                     }
                     document.getElementById('recStatusInfo').innerText = `Bytes empfangen: ${receivedBytes.length}`;
                     
-                    // Bereite Download-Link vor
                     const byteArray = new Uint8Array(receivedBytes);
                     const blob = new Blob([byteArray]);
                     const blobUrl = URL.createObjectURL(blob);
@@ -495,7 +489,7 @@
                     dlLink.style.display = "block";
                 }
 
-            }, 250); // Scannt ca. 4 mal pro Sekunde das Kamerabild nach Farben ab
+            }, 250);
         }
     </script>
 </body>
