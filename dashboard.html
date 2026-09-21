@@ -4,89 +4,57 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🔒 Private Dashboard</title>
-    <!-- Favicon mit Schlosssymbol -->
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
     <style>
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; min-height: 100vh; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; margin: 0; padding: 12px; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
         
-        /* Navigation Header */
-        .header { width: 100%; max-width: 640px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-        .header h1 { font-size: 20px; font-weight: 700; margin: 0; }
-        .logout-btn { background: rgba(255, 69, 58, 0.15); color: #ff453a; border: 1px solid rgba(255, 69, 58, 0.3); padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
-        .logout-btn:active { transform: scale(0.95); }
+        .container { width: 100%; max-width: 500px; background: #121212; border-radius: 20px; padding: 16px; border: 1px solid #27272a; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
 
-        /* Programmauswahl Dropdown */
-        .app-select-box { width: 100%; max-width: 640px; margin-bottom: 16px; }
-        .app-select { width: 100%; background: #1c1c1e; color: #0a84ff; border: 1px solid rgba(255, 255, 255, 0.1); padding: 14px 18px; border-radius: 16px; font-size: 16px; font-weight: 600; outline: none; cursor: pointer; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230a84ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e"); background-repeat: no-repeat; background-position: right 16px center; background-size: 18px; }
-
-        .main-card { width: 100%; max-width: 640px; background: #1c1c1e; border-radius: 24px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-
-        /* Modus Tabs */
-        .tab-bar { display: flex; background: #2c2c2e; padding: 4px; border-radius: 14px; margin-bottom: 20px; }
-        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #8e8e93; font-weight: 600; font-size: 15px; border-radius: 10px; cursor: pointer; transition: all 0.2s; }
-        .tab-btn.active { background: #636366; color: #fff; }
+        /* Navigation / Modus Tabs */
+        .tab-bar { display: flex; background: #27272a; padding: 4px; border-radius: 12px; margin-bottom: 16px; }
+        .tab-btn { flex: 1; padding: 10px; border: none; background: transparent; color: #a1a1aa; font-weight: 700; font-size: 15px; border-radius: 8px; cursor: pointer; transition: all 0.2s; text-align: center; }
+        .tab-btn.active { background: #52525b; color: #fff; }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; }
 
-        /* Regler & Parameter */
-        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
-        .control-group { background: #2c2c2e; padding: 12px; border-radius: 12px; }
-        label { display: block; font-size: 12px; color: #8e8e93; margin-bottom: 6px; font-weight: 600; }
-        input[type="range"] { width: 100%; }
-        .val-disp { font-size: 14px; font-weight: 700; color: #0a84ff; float: right; }
+        /* Datei Button */
+        input[type="file"] { display: none; }
+        .file-label { display: block; background: #18181b; color: #3b82f6; text-align: center; padding: 12px; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; border: 1px dashed #3b82f6; margin-bottom: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-        /* Canvas & Kamera Display */
-        .display-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 16px; overflow: hidden; display: flex; justify-content: center; align-items: center; border: 1px solid #3a3a3c; margin-bottom: 16px; }
+        /* Regler */
+        .controls { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+        .control-group { background: #18181b; padding: 10px; border-radius: 10px; border: 1px solid #27272a; }
+        label { display: block; font-size: 11px; color: #a1a1aa; margin-bottom: 4px; font-weight: 600; }
+        input[type="range"] { width: 100%; accent-color: #3b82f6; }
+        .val-disp { font-size: 13px; font-weight: 700; color: #3b82f6; float: right; }
+
+        /* Display (Matrix Canvas / Kamera) */
+        .display-box { position: relative; width: 100%; aspect-ratio: 1/1; background: #000; border-radius: 12px; overflow: hidden; display: flex; justify-content: center; align-items: center; border: 1px solid #27272a; margin-bottom: 16px; }
         canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .camera-overlay { position: absolute; width: 75%; height: 75%; border: 2px dashed rgba(255, 255, 255, 0.7); border-radius: 20px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+        .camera-overlay { position: absolute; width: 75%; height: 75%; border: 2px dashed rgba(255, 255, 255, 0.7); border-radius: 16px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); }
 
-        /* Aktions-Buttons */
-        .btn-group { display: flex; gap: 10px; margin-bottom: 16px; }
-        .btn { flex: 1; background: #0a84ff; color: #fff; border: none; padding: 14px; border-radius: 14px; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; }
-        .btn:active { opacity: 0.8; }
-        .btn-stop { background: #ff453a; }
-        .btn-secondary { background: #2c2c2e; color: #0a84ff; }
+        /* Steuer-Buttons */
+        .btn-group { display: flex; gap: 8px; margin-bottom: 12px; }
+        .btn { flex: 1; background: #2563eb; color: #fff; border: none; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; }
+        .btn-stop { background: #dc2626; }
+        .btn-secondary { background: #27272a; color: #3b82f6; }
 
-        input[type="file"] { display: none; }
-        .file-label { display: block; background: #2c2c2e; color: #0a84ff; text-align: center; padding: 14px; border-radius: 14px; font-weight: 600; cursor: pointer; border: 1px dashed #0a84ff; margin-bottom: 16px; }
-
-        .progress-bar { width: 100%; background: #2c2c2e; height: 8px; border-radius: 4px; overflow: hidden; margin-bottom: 12px; display: none; }
-        .progress-fill { width: 0%; height: 100%; background: #30d158; transition: width 0.1s; }
-        .status-text { font-size: 13px; color: #8e8e93; text-align: center; }
+        .status-text { font-size: 12px; color: #a1a1aa; text-align: center; }
     </style>
 </head>
 <body>
 
     <script>
-        // Passwort-Schutz Pruefung
         if (localStorage.getItem("app_unlocked") !== "true") {
-            window.location.href = "index.html";
-        }
-        function logout() {
-            localStorage.removeItem("app_unlocked");
             window.location.href = "index.html";
         }
     </script>
 
-    <div class="header">
-        <h1>Private Apps Dashboard</h1>
-        <button class="logout-btn" onclick="logout()">🔒 Sperren</button>
-    </div>
-
-    <!-- App / Tool Auswahlmenue -->
-    <div class="app-select-box">
-        <select class="app-select" id="appSelector" onchange="changeApp()">
-            <option value="matrix">🚀 High-Speed Color Matrix Transfer</option>
-            <option value="text">📝 Schneller Text & Link Transfer</option>
-            <option value="status">📊 System & Storage Status</option>
-        </select>
-    </div>
-
-    <!-- MAIN APP: COLOR MATRIX -->
-    <div id="app-matrix" class="main-card">
+    <div class="container">
+        <!-- MODUS TABS (Senden / Empfangen) -->
         <div class="tab-bar">
             <button class="tab-btn active" id="tab-btn-send" onclick="switchTab('send')">Senden</button>
             <button class="tab-btn" id="tab-btn-receive" onclick="switchTab('receive')">Empfangen</button>
@@ -94,13 +62,13 @@
 
         <!-- TAB: SENDEN -->
         <div id="tab-send" class="tab-content active">
-            <label class="file-label" for="fileInput">📁 Datei zum Übertragen auswählen</label>
+            <label class="file-label" id="fileLabel" for="fileInput">📁 Datei zum Übertragen auswählen</label>
             <input type="file" id="fileInput" onchange="handleFileSelect(event)">
 
             <div class="controls">
                 <div class="control-group">
                     <label>Grid Size <span id="gridVal" class="val-disp">16x16</span></label>
-                    <input type="range" id="gridSize" min="8" max="30" step="2" value="16" oninput="updateControls()">
+                    <input type="range" id="gridSize" min="8" max="32" step="2" value="16" oninput="updateControls()">
                 </div>
                 <div class="control-group">
                     <label>FPS Speed <span id="fpsVal" class="val-disp">12 FPS</span></label>
@@ -113,11 +81,11 @@
             </div>
 
             <div class="btn-group">
-                <button class="btn" onclick="startTransmission()">▶️ Übertragung Starten</button>
+                <button class="btn" onclick="startTransmission()">▶️ Starten</button>
                 <button class="btn btn-stop" onclick="stopTransmission()">⏹️ Anhalten</button>
             </div>
 
-            <div class="status-text" id="sendStatus">Keine Datei ausgewählt</div>
+            <div class="status-text" id="sendStatus">Keine Datei geladen</div>
         </div>
 
         <!-- TAB: EMPFANGEN -->
@@ -128,42 +96,38 @@
             </div>
 
             <div class="btn-group">
-                <button class="btn" onclick="startCamera()">📷 Kamera Aktivieren</button>
-                <button class="btn btn-secondary" onclick="stopCamera()">Kamera Aus</button>
+                <button class="btn" onclick="startCamera()">📷 Kamera Starten</button>
+                <button class="btn btn-secondary" onclick="stopCamera()">Stopp</button>
             </div>
 
-            <div class="progress-bar" id="progressBar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
             <div class="status-text" id="receiveStatus">Bereit zum Scannen</div>
         </div>
     </div>
 
-    <!-- APP: TEXT TRANSFER -->
-    <div id="app-text" class="main-card" style="display: none;">
-        <h3>Text Transfer</h3>
-        <p style="color: #8e8e93; font-size: 14px;">Hier kannst du kurze Texte oder Links direkt in eine Farb-Matrix umwandeln.</p>
-    </div>
-
-    <!-- APP: SYSTEM STATUS -->
-    <div id="app-status" class="main-card" style="display: none;">
-        <h3>System Status</h3>
-        <p style="color: #8e8e93; font-size: 14px;">Domain: ju19906305.strangled.net<br>Status: Online & Verschlüsselt (HTTPS)</p>
-    </div>
-
     <script>
-        function changeApp() {
-            const selected = document.getElementById('appSelector').value;
-            document.getElementById('app-matrix').style.display = selected === 'matrix' ? 'block' : 'none';
-            document.getElementById('app-text').style.display = selected === 'text' ? 'block' : 'none';
-            document.getElementById('app-status').style.display = selected === 'status' ? 'block' : 'none';
-        }
+        let fileData = null;
+        let isTransmitting = false;
+        let animationTimer = null;
+        let frameIndex = 0;
+
+        // Farb-Palette fuer die Bild-Matrix (RGB)
+        const COLOR_PALETTE = [
+            [0, 0, 0],       // Schwarz
+            [255, 255, 255], // Weiß
+            [255, 0, 0],     // Rot
+            [0, 255, 0],     // Grün
+            [0, 0, 255],     // Blau
+            [255, 255, 0],   // Gelb
+            [0, 255, 255],   // Cyan
+            [255, 0, 255]    // Magenta
+        ];
 
         function switchTab(tab) {
             document.getElementById('tab-btn-send').classList.toggle('active', tab === 'send');
             document.getElementById('tab-btn-receive').classList.toggle('active', tab === 'receive');
             document.getElementById('tab-send').classList.toggle('active', tab === 'send');
             document.getElementById('tab-receive').classList.toggle('active', tab === 'receive');
+            if(tab === 'send') stopCamera();
         }
 
         function updateControls() {
@@ -173,17 +137,95 @@
 
         function handleFileSelect(event) {
             const file = event.target.files[0];
-            if (file) {
-                document.getElementById('sendStatus').innerText = `Bereit: ${file.name} (${Math.round(file.size/1024)} KB)`;
+            if (!file) return;
+
+            document.getElementById('fileLabel').innerText = `📄 ${file.name}`;
+            document.getElementById('sendStatus').innerText = `Datei geladen: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                fileData = new Uint8Array(e.target.result);
+                drawPreview();
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function drawPreview() {
+            const canvas = document.getElementById('matrixCanvas');
+            const ctx = canvas.getContext('2d');
+            const gridSize = parseInt(document.getElementById('gridSize').value);
+            const cellSize = canvas.width / gridSize;
+
+            ctx.fillStyle = "#000";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Testmuster/Vorschau zeichnen
+            if (fileData) {
+                drawFrame(0);
+            }
+        }
+
+        function drawFrame(index) {
+            if (!fileData) return;
+            const canvas = document.getElementById('matrixCanvas');
+            const ctx = canvas.getContext('2d');
+            const gridSize = parseInt(document.getElementById('gridSize').value);
+            const cellSize = canvas.width / gridSize;
+            const totalCells = gridSize * gridSize;
+
+            const startByte = index * totalCells;
+
+            for (let y = 0; y < gridSize; y++) {
+                for (let x = 0; x < gridSize; x++) {
+                    const byteIdx = startByte + (y * gridSize + x);
+                    let color = "#000000";
+
+                    if (byteIdx < fileData.length) {
+                        const val = fileData[byteIdx];
+                        const paletteIdx = val % COLOR_PALETTE.length;
+                        const c = COLOR_PALETTE[paletteIdx];
+                        color = `rgb(${c[0]},${c[1]},${c[2]})`;
+                    }
+
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x * cellSize, y * cellSize, cellSize - 1, cellSize - 1);
+                }
             }
         }
 
         function startTransmission() {
-            document.getElementById('sendStatus').innerText = "Übertragung läuft...";
+            if (!fileData) {
+                alert("Bitte wähle zuerst eine Datei aus!");
+                return;
+            }
+
+            if (isTransmitting) return;
+            isTransmitting = true;
+            frameIndex = 0;
+
+            const gridSize = parseInt(document.getElementById('gridSize').value);
+            const totalCells = gridSize * gridSize;
+            const totalFrames = Math.ceil(fileData.length / totalCells);
+
+            function loop() {
+                if (!isTransmitting) return;
+
+                drawFrame(frameIndex);
+                document.getElementById('sendStatus').innerText = `Übertragung läuft... Frame ${frameIndex + 1} / ${totalFrames}`;
+
+                frameIndex = (frameIndex + 1) % totalFrames;
+
+                const fps = parseInt(document.getElementById('fpsSpeed').value);
+                animationTimer = setTimeout(loop, 1000 / fps);
+            }
+
+            loop();
         }
 
         function stopTransmission() {
-            document.getElementById('sendStatus').innerText = "Übertragung angehalten";
+            isTransmitting = false;
+            if (animationTimer) clearTimeout(animationTimer);
+            document.getElementById('sendStatus').innerText = "Übertragung gestoppt";
         }
 
         async function startCamera() {
@@ -191,9 +233,8 @@
                 const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
                 document.getElementById("webcam").srcObject = stream;
                 document.getElementById("receiveStatus").innerText = "Scanne Color-Matrix...";
-                document.getElementById("progressBar").style.display = "block";
             } catch (err) {
-                alert("Kamera-Zugriff fehlgeschlagen! Bitte stelle sicher, dass du die Seite über HTTPS aufrufst.");
+                alert("Kamera konnte nicht gestartet werden.");
             }
         }
 
