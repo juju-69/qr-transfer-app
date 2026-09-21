@@ -234,8 +234,12 @@
 
             const startByte = index * totalCells;
 
+            // Hintergrund komplett Schwarz machen (bildet das schwarze Trenngitter)
             ctx.fillStyle = "#000000";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Dynamischer Rand: Ca. 10% der Zellengröße als Trennabstand (mindestens 1px)
+            const gap = Math.max(1, Math.floor(cellSize * 0.1));
 
             for (let y = 0; y < gridSize; y++) {
                 for (let x = 0; x < gridSize; x++) {
@@ -251,7 +255,13 @@
                     }
 
                     ctx.fillStyle = color;
-                    ctx.fillRect(x * cellSize, y * cellSize, cellSize - 0.5, cellSize - 0.5);
+                    // Zeichnet das Pixel mit präzisem schwarzen Rand rundherum
+                    ctx.fillRect(
+                        x * cellSize + gap / 2, 
+                        y * cellSize + gap / 2, 
+                        cellSize - gap, 
+                        cellSize - gap
+                    );
                 }
             }
         }
