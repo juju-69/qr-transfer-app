@@ -57,12 +57,15 @@
         
         canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; border-radius: 8px; box-shadow: 0 0 30px rgba(0, 0, 0, 0.8); }
         video { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
-        .camera-overlay { position: absolute; width: 75%; height: 75%; border: 2px dashed rgba(255, 255, 255, 0.7); border-radius: 16px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); }
+        .camera-overlay { position: absolute; width: 75%; height: 75%; border: 2px dashed rgba(255, 255, 255, 0.7); border-radius: 16px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5); z-index: 5; }
 
-        .status-bar { position: absolute; bottom: 12px; background: rgba(18, 18, 21, 0.85); backdrop-filter: blur(8px); border: 1px solid #27272a; padding: 6px 14px; border-radius: 20px; font-size: 12px; color: #a1a1aa; text-align: center; }
+        .status-bar { position: absolute; bottom: 12px; background: rgba(18, 18, 21, 0.85); backdrop-filter: blur(8px); border: 1px solid #27272a; padding: 6px 14px; border-radius: 20px; font-size: 12px; color: #a1a1aa; text-align: center; z-index: 6; }
 
         .tab-content { display: none; width: 100%; }
         .tab-content.active { display: flex; flex-direction: column; gap: 12px; }
+
+        /* Empfangenes Ergebnis Download Box */
+        .receive-result { margin-top: 12px; background: #18181b; padding: 12px; border-radius: 10px; border: 1px solid #27272a; display: none; text-align: center; }
 
         /* GLOBAL DROPZONE OVERLAY */
         .dropzone-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh; background: rgba(9, 9, 11, 0.88); backdrop-filter: blur(10px); z-index: 9999; display: none; justify-content: center; align-items: center; border: 4px dashed #3b82f6; }
@@ -71,7 +74,6 @@
         .dropzone-text { font-size: 18px; font-weight: 700; color: #fff; }
         .dropzone-subtext { font-size: 13px; color: #a1a1aa; margin-top: 6px; }
 
-        /* iPhone / Mobile Optimierung (Bildschirme unter 850px Breite) */
         @media (max-width: 850px) {
             .app-layout { flex-direction: column-reverse; height: 100dvh; }
             .sidebar { width: 100%; height: 55vh; min-width: unset; border-right: none; border-top: 1px solid #27272a; }
@@ -150,9 +152,22 @@
                 </div>
 
                 <div id="tab-receive" class="tab-content">
+                    <div class="control-group">
+                        <div class="control-header">
+                            <label>Empfangs-Grid (muss passen)</label>
+                            <span id="recGridVal" class="val-disp">16x16</span>
+                        </div>
+                        <input type="range" id="recGridSize" min="8" max="60" step="2" value="16" oninput="updateRecControls()">
+                    </div>
+
                     <div class="btn-group">
                         <button class="btn" onclick="startCamera()">📷 Kamera Starten</button>
                         <button class="btn btn-secondary" onclick="stopCamera()">Stopp</button>
+                    </div>
+
+                    <div id="receiveResultBox" class="receive-result">
+                        <p id="recStatusInfo" style="font-size: 12px; margin-bottom: 8px; color: #a1a1aa;">Keine Daten empfangen</p>
+                        <a id="downloadLink" style="display:none;" class="btn" style="text-decoration:none; padding:8px; display:block;">📥 Datei Herunterladen</a>
                     </div>
                 </div>
             </div>
@@ -171,12 +186,19 @@
         </div>
     </div>
 
+    <!-- Versteckter Canvas zum Auslesen des Kamera-Videostreams -->
+    <canvas id="processingCanvas" width="300" height="300" style="display: none;"></canvas>
+
     <script>
         let fileData = null;
         let isTransmitting = false;
         let animationTimer = null;
         let frameIndex = 0;
         let activeTab = 'send';
+
+        let isReceiving = false;
+        let receiveTimer = null;
+        let receivedBytes = [];
 
         const COLOR_PALETTE = [
             [0, 0, 0],       // Schwarz
@@ -211,7 +233,7 @@
                 canvas.style.display = 'none';
                 video.style.display = 'block';
                 overlay.style.display = 'block';
-                document.getElementById('statusText').innerText = "Bereit zum Scannen";
+                document.getElementById('statusText').innerText = "Kamera starten zum Empfangen";
             }
         }
 
@@ -225,6 +247,11 @@
             document.getElementById('fpsWarning').style.display = fps >= 31 ? 'block' : 'none';
 
             if (fileData && activeTab === 'send') drawFrame(frameIndex);
+        }
+
+        function updateRecControls() {
+            const recGridSize = parseInt(document.getElementById('recGridSize').value);
+            document.getElementById('recGridVal').innerText = recGridSize + 'x' + recGridSize;
         }
 
         function handleFile(file) {
@@ -366,15 +393,28 @@
 
         async function startCamera() {
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                document.getElementById("webcam").srcObject = stream;
-                document.getElementById("statusText").innerText = "Scanne Color-Matrix...";
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } } 
+                });
+                const video = document.getElementById("webcam");
+                video.srcObject = stream;
+                document.getElementById("statusText").innerText = "Empfange Daten per Kamera...";
+                
+                isReceiving = true;
+                receivedBytes = [];
+                document.getElementById('receiveResultBox').style.display = 'block';
+                document.getElementById('recStatusInfo').innerText = "Scanne Matrix-Frames...";
+
+                startReceivingLoop();
             } catch (err) {
                 alert("Kamera konnte nicht gestartet werden.");
             }
         }
 
         function stopCamera() {
+            isReceiving = false;
+            if (receiveTimer) clearInterval(receiveTimer);
+
             const video = document.getElementById("webcam");
             if (video.srcObject) {
                 video.srcObject.getTracks().forEach(track => track.stop());
@@ -383,6 +423,79 @@
             if (activeTab === 'receive') {
                 document.getElementById("statusText").innerText = "Kamera gestoppt";
             }
+        }
+
+        /* ECHTHEITS- UND FARB-ERKENNUNG DER KAMERA */
+        function startReceivingLoop() {
+            const video = document.getElementById("webcam");
+            const procCanvas = document.getElementById("processingCanvas");
+            const pCtx = procCanvas.getContext("2d", { willReadFrequently: true });
+
+            receiveTimer = setInterval(() => {
+                if (!isReceiving || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+
+                const gridSize = parseInt(document.getElementById('recGridSize').value);
+                
+                // Wir zeichnen das zentrale 75% Quadrat des Videos in unseren Analyse-Canvas
+                const vWidth = video.videoWidth;
+                const vHeight = video.videoHeight;
+                const cropSize = Math.min(vWidth, vHeight) * 0.75;
+                const startX = (vWidth - cropSize) / 2;
+                const startY = (vHeight - cropSize) / 2;
+
+                procCanvas.width = gridSize;
+                procCanvas.height = gridSize;
+
+                pCtx.drawImage(video, startX, startY, cropSize, cropSize, 0, 0, gridSize, gridSize);
+
+                const frameDataBytes = [];
+                const imgData = pCtx.getImageData(0, 0, gridSize, gridSize);
+                const pixels = imgData.data;
+
+                for (let y = 0; y < gridSize; y++) {
+                    for (let x = 0; x < gridSize; x++) {
+                        const offset = (y * gridSize + x) * 4;
+                        const r = pixels[offset];
+                        const g = pixels[offset + 1];
+                        const b = pixels[offset + 2];
+
+                        // Finde die ähnlichste Farbe aus der COLOR_PALETTE
+                        let closestPaletteIdx = 0;
+                        let minDistance = Infinity;
+
+                        for (let i = 0; i < COLOR_PALETTE.length; i++) {
+                            const cp = COLOR_PALETTE[i];
+                            const dist = Math.abs(r - cp[0]) + Math.abs(g - cp[1]) + Math.abs(b - cp[2]);
+                            if (dist < minDistance) {
+                                minDistance = dist;
+                                closestPaletteIdx = i;
+                            }
+                        }
+                        frameDataBytes.push(closestPaletteIdx);
+                    }
+                }
+
+                // Erkennungstest: Wenn der Frame nicht komplett schwarz ist, als Daten werten
+                const hasContent = frameDataBytes.some(val => val !== 0);
+                if (hasContent) {
+                    // Wir hängen die erkannten Bytes an den Empfangs-Puffer an
+                    // (In einer echten Übertragung würde hier noch Frame-Sync / Header stehen)
+                    for (let bVal of frameDataBytes) {
+                        receivedBytes.push(bVal);
+                    }
+                    document.getElementById('recStatusInfo').innerText = `Bytes empfangen: ${receivedBytes.length}`;
+                    
+                    // Bereite Download-Link vor
+                    const byteArray = new Uint8Array(receivedBytes);
+                    const blob = new Blob([byteArray]);
+                    const blobUrl = URL.createObjectURL(blob);
+                    const dlLink = document.getElementById('downloadLink');
+                    dlLink.href = blobUrl;
+                    dlLink.download = "empfangene_datei.bin";
+                    dlLink.style.display = "block";
+                }
+
+            }, 250); // Scannt ca. 4 mal pro Sekunde das Kamerabild nach Farben ab
         }
     </script>
 </body>
