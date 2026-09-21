@@ -3,61 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🔒 Zugangsschutz</title>
-    <!-- Favicon mit Schlosssymbol für den Browser-Tab -->
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔒</text></svg>">
+    <title>Anmelden</title>
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #000; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
-        .card { background: rgba(28, 28, 30, 0.8); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); padding: 32px 24px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); text-align: center; width: 100%; max-width: 360px; border: 1px solid rgba(255,255,255,0.1); }
-        .icon { font-size: 48px; margin-bottom: 12px; }
-        h2 { margin: 0 0 8px 0; font-weight: 700; font-size: 22px; }
-        p { color: #8e8e93; font-size: 14px; margin: 0 0 24px 0; }
-        input { width: 100%; padding: 14px; margin-bottom: 12px; background: #2c2c2e; border: 1px solid #3a3a3c; border-radius: 12px; font-size: 16px; color: #fff; text-align: center; outline: none; transition: border-color 0.2s; }
-        input:focus { border-color: #0a84ff; }
-        button { background: #0a84ff; color: white; border: none; padding: 14px; border-radius: 12px; font-weight: 600; font-size: 16px; cursor: pointer; width: 100%; transition: opacity 0.2s, transform 0.1s; }
-        button:active { opacity: 0.8; transform: scale(0.98); }
-        .error { color: #ff453a; font-size: 13px; margin-top: 12px; display: none; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #09090b; color: #f4f4f5; height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .login-card { background: #121215; border: 1px solid #27272a; padding: 32px; border-radius: 16px; width: 100%; max-width: 360px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .lock-icon { font-size: 40px; margin-bottom: 16px; display: block; }
+        h1 { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+        input[type="password"] { width: 100%; padding: 12px; background: #18181b; border: 1px solid #27272a; border-radius: 10px; color: #fff; font-size: 15px; margin-bottom: 16px; text-align: center; outline: none; }
+        input[type="password"]:focus { border-color: #3b82f6; }
+        button { width: 100%; padding: 12px; background: #2563eb; color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 15px; cursor: pointer; transition: background 0.2s; }
+        button:hover { background: #1d4ed8; }
+        .error { color: #ef4444; font-size: 13px; margin-top: 12px; display: none; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div class="icon">🔒</div>
-        <h2>Private Apps</h2>
-        <p>Bitte Zugangsschlüssel eingeben</p>
-        <input type="password" id="passkey" placeholder="Passwort" onkeypress="if(event.key==='Enter') unlock()">
-        <button onclick="unlock()">Freischalten</button>
-        <div id="err" class="error">Falsches Passwort!</div>
+    <div class="login-card">
+        <span class="lock-icon">🔒</span>
+        <h1>Zugang geschützt</h1>
+        <form onsubmit="checkPassword(event)">
+            <input type="password" id="password" placeholder="Passwort eingeben" required>
+            <button type="submit">Entsperren</button>
+        </form>
+        <div id="errorMsg" class="error">Falsches Passwort!</div>
     </div>
 
     <script>
-        // Der SHA-256 Hash für "Appsbyju19906305"
-        const SECRET_HASH = "8ba7b3dbd4a13d78c005b68233a36db5ad11beff0e49be88a10bc30fbd9e2051";
-
-        async function hashString(str) {
-            const buffer = new TextEncoder().encode(str);
-            const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-        }
-
-        async function unlock() {
-            const input = document.getElementById("passkey").value;
-            const inputHash = await hashString(input);
-
-            if (inputHash === SECRET_HASH) {
+        function checkPassword(e) {
+            e.preventDefault();
+            const pass = document.getElementById("password").value;
+            // Passe hier dein Passwort an:
+            if (pass === "1234") { 
                 localStorage.setItem("app_unlocked", "true");
-                window.location.href = "dashboard.html";
+                window.location.href = "apps.html";
             } else {
-                document.getElementById("err").style.display = "block";
+                document.getElementById("errorMsg").style.display = "block";
             }
         }
-
-        if (localStorage.getItem("app_unlocked") === "true") {
-            window.location.href = "dashboard.html";
-        }
     </script>
-
 </body>
 </html>
