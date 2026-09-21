@@ -372,8 +372,10 @@
                 drawFrame(frameIndex);
                 document.getElementById('statusText').innerText = `Übertragung läuft... Frame ${frameIndex + 1} / ${totalFrames}`;
 
-                // Nächster Frame oder automatischer Stopp nach dem letzten Frame
+                // Nächster Frame
                 frameIndex++;
+
+                // Automatischer Stopp genau nach dem letzten Frame
                 if (frameIndex >= totalFrames) {
                     stopTransmission();
                     document.getElementById('statusText').innerText = `Übertragung beendet (${totalFrames} Frames gesendet).`;
