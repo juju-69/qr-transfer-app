@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Hub</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #09090b; color: #f4f4f5; min-height: 100vh; padding: 40px 20px; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; border-bottom: 1px solid #27272a; padding-bottom: 20px; }
+        .header h1 { font-size: 24px; font-weight: 700; }
+        .logout-btn { background: transparent; color: #a1a1aa; border: 1px solid #27272a; padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .logout-btn:hover { background: #18181b; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
+
+        /* Grid für App-Kacheln */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 20px; }
+        
+        .app-card { background: #121215; border: 1px solid #27272a; border-radius: 16px; padding: 24px; text-decoration: none; color: inherit; transition: all 0.2s; display: flex; flex-direction: column; justify-content: space-between; height: 180px; }
+        .app-card:hover { border-color: #3b82f6; transform: translateY(-4px); box-shadow: 0 10px 25px rgba(59, 130, 246, 0.1); }
+        .app-card.disabled { opacity: 0.4; cursor: not-allowed; border-style: dashed; }
+        .app-card.disabled:hover { transform: none; border-color: #27272a; box-shadow: none; }
+
+        .app-icon { width: 40px; height: 40px; background: rgba(59, 130, 246, 0.1); border-radius: 10px; display: flex; justify-content: center; align-items: center; margin-bottom: 16px; }
+        .app-icon svg { width: 24px; height: 24px; stroke: #3b82f6; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+        .app-title { font-size: 18px; font-weight: 700; margin-bottom: 6px; }
+        .app-desc { font-size: 13px; color: #a1a1aa; line-height: 1.4; }
+        .badge { align-self: flex-start; font-size: 11px; background: #27272a; color: #a1a1aa; padding: 4px 8px; border-radius: 6px; font-weight: 600; margin-top: 12px; }
+    </style>
+</head>
+<body>
+
+    <script>
+        // Sicherheitscheck
+        if (localStorage.getItem("app_unlocked") !== "true") {
+            window.location.href = "index.html";
+        }
+        function logout() {
+            localStorage.removeItem("app_unlocked");
+            window.location.href = "index.html";
+        }
+    </script>
+
+    <div class="container">
+        <div class="header">
+            <h1>Anwendungen</h1>
+            <button class="logout-btn" onclick="logout()">Abmelden</button>
+        </div>
+
+        <div class="grid">
+            <!-- App 1: Color Matrix Transfer -->
+            <a href="dashboard.html" class="app-card">
+                <div>
+                    <div class="app-icon">
+                        <svg viewBox="0 0 24 24">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <path d="M2 12h20"></path>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                    </div>
+                    <div class="app-title">Color Matrix Transfer</div>
+                    <div class="app-desc">Optische Datenübertragung via Farb-Matrix-Steuerung.</div>
+                </div>
+            </a>
+
+            <!-- Platzhalter für zukünftige App 2 -->
+            <div class="app-card disabled">
+                <div>
+                    <div class="app-title" style="color: #71717a;">Demnächst...</div>
+                    <div class="app-desc">Weitere Anwendung in Entwicklung.</div>
+                </div>
+                <span class="badge">In Planung</span>
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
