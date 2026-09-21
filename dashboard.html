@@ -9,10 +9,10 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #09090b; color: #f4f4f5; height: 100vh; overflow: hidden; display: flex; }
 
-        .app-layout { display: flex; width: 100vw; height: 100vh; }
+        .app-layout { display: flex; width: 100vw; height: 100vh; position: relative; }
 
         /* Links: Seitenleiste */
-        .sidebar { width: 360px; min-width: 320px; background: #121215; border-right: 1px solid #27272a; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; overflow-y: auto; }
+        .sidebar { width: 360px; min-width: 320px; background: #121215; border-right: 1px solid #27272a; display: flex; flex-direction: column; justify-content: space-between; padding: 20px; overflow-y: auto; z-index: 2; }
         
         .nav-back { display: inline-flex; align-items: center; gap: 6px; color: #a1a1aa; text-decoration: none; font-size: 13px; font-weight: 600; margin-bottom: 16px; transition: color 0.2s; }
         .nav-back:hover { color: #3b82f6; }
@@ -52,7 +52,7 @@
         .logout-btn:hover { background: #18181b; color: #ef4444; border-color: rgba(239, 68, 68, 0.3); }
 
         /* Rechts: Hauptbereich */
-        .main-content { flex: 1; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; padding: 20px; }
+        .main-content { flex: 1; background: #000; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; padding: 20px; z-index: 1; }
         .display-container { width: 100%; height: 100%; max-width: 80vh; max-height: 80vh; display: flex; justify-content: center; align-items: center; position: relative; }
         
         canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; border-radius: 8px; box-shadow: 0 0 40px rgba(0, 0, 0, 0.8); }
@@ -63,6 +63,13 @@
 
         .tab-content { display: none; width: 100%; }
         .tab-content.active { display: flex; flex-direction: column; gap: 16px; }
+
+        /* GLOBAL DROPZONE OVERLAY */
+        .dropzone-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(9, 9, 11, 0.85); backdrop-filter: blur(10px); z-index: 9999; display: none; justify-content: center; align-items: center; border: 4px dashed #3b82f6; }
+        .dropzone-content { text-align: center; pointer-events: none; }
+        .dropzone-icon { font-size: 64px; margin-bottom: 16px; }
+        .dropzone-text { font-size: 22px; font-weight: 700; color: #fff; }
+        .dropzone-subtext { font-size: 14px; color: #a1a1aa; margin-top: 8px; }
     </style>
 </head>
 <body>
@@ -76,6 +83,15 @@
             window.location.href = "index.html";
         }
     </script>
+
+    <!-- Global Dropzone Overlay -->
+    <div id="dropzoneOverlay" class="dropzone-overlay">
+        <div class="dropzone-content">
+            <div class="dropzone-icon">📁</div>
+            <div class="dropzone-text">Datei hier ablegen zum Hochladen</div>
+            <div class="dropzone-subtext">Die Datei wird direkt für die Farb-Matrix aufbereitet</div>
+        </div>
+    </div>
 
     <div class="app-layout">
         <div class="sidebar">
@@ -97,7 +113,7 @@
                 </div>
 
                 <div id="tab-send" class="tab-content active">
-                    <label class="file-label" id="fileLabel" for="fileInput">📁 Datei auswählen</label>
+                    <label class="file-label" id="fileLabel" for="fileInput">📁 Datei auswählen oder reinziehen</label>
                     <input type="file" id="fileInput" onchange="handleFileSelect(event)">
 
                     <div class="control-group">
@@ -202,8 +218,7 @@
             if (fileData && activeTab === 'send') drawFrame(frameIndex);
         }
 
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
+        function handleFile(file) {
             if (!file) return;
 
             if (file.size === 0) {
@@ -218,10 +233,50 @@
             reader.onload = function(e) {
                 fileData = new Uint8Array(e.target.result);
                 frameIndex = 0;
+                switchTab('send');
                 drawFrame(0);
             };
             reader.readAsArrayBuffer(file);
         }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            handleFile(file);
+        }
+
+        /* DRAG AND DROP HANDLING OVERLAY */
+        const dropzoneOverlay = document.getElementById('dropzoneOverlay');
+        let dragCounter = 0;
+
+        window.addEventListener('dragenter', (e) => {
+            e.preventDefault();
+            dragCounter++;
+            if (e.dataTransfer.types && e.dataTransfer.types.includes('Files')) {
+                dropzoneOverlay.style.display = 'flex';
+            }
+        });
+
+        window.addEventListener('dragover', (e) => {
+            e.preventDefault();
+        });
+
+        window.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dragCounter--;
+            if (dragCounter === 0) {
+                dropzoneOverlay.style.display = 'none';
+            }
+        });
+
+        window.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dragCounter = 0;
+            dropzoneOverlay.style.display = 'none';
+
+            if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
 
         function drawFrame(index) {
             if (!fileData || fileData.length === 0) return;
@@ -234,11 +289,9 @@
 
             const startByte = index * totalCells;
 
-            // Hintergrund komplett Schwarz machen (bildet das schwarze Trenngitter)
             ctx.fillStyle = "#000000";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Dynamischer Rand: Ca. 10% der Zellengröße als Trennabstand (mindestens 1px)
             const gap = Math.max(1, Math.floor(cellSize * 0.1));
 
             for (let y = 0; y < gridSize; y++) {
@@ -255,7 +308,6 @@
                     }
 
                     ctx.fillStyle = color;
-                    // Zeichnet das Pixel mit präzisem schwarzen Rand rundherum
                     ctx.fillRect(
                         x * cellSize + gap / 2, 
                         y * cellSize + gap / 2, 
