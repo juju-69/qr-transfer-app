@@ -189,6 +189,7 @@
 
     <script>
         let fileData = null;
+        let fileName = "datei.bin";
         let isTransmitting = false;
         let animationTimer = null;
         let frameIndex = 0;
@@ -196,7 +197,8 @@
 
         let isReceiving = false;
         let receiveTimer = null;
-        let receivedBytes = [];
+        let rawPayloadBytes = [];
+        let lastClockState = -1; // -1 = noch kein Takt erkannt
 
         const COLOR_PALETTE = [
             [0, 0, 0],       // Schwarz
@@ -260,12 +262,31 @@
                 return;
             }
 
-            document.getElementById('fileLabel').innerText = `📄 ${file.name}`;
-            document.getElementById('statusText').innerText = `Datei geladen: ${file.name} (${(file.size/1024).toFixed(1)} KB)`;
+            fileName = file.name;
+            document.getElementById('fileLabel').innerText = `📄 ${fileName}`;
+            document.getElementById('statusText').innerText = `Datei geladen: ${fileName} (${(file.size/1024).toFixed(1)} KB)`;
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                fileData = new Uint8Array(e.target.result);
+                const rawBuffer = new Uint8Array(e.target.result);
+                
+                // Protokoll-Header: [Name-Länge] + [Dateiname] + [Daten-Länge (4 Bytes)] + [Echte Bytes]
+                const nameBytes = new TextEncoder().encode(fileName);
+                const headerLen = 1 + nameBytes.length + 4;
+                
+                const combined = new Uint8Array(headerLen + rawBuffer.length);
+                combined[0] = nameBytes.length;
+                combined.set(nameBytes, 1);
+                
+                const dataLen = rawBuffer.length;
+                combined[1 + nameBytes.length] = (dataLen >> 24) & 0xFF;
+                combined[1 + nameBytes.length + 1] = (dataLen >> 16) & 0xFF;
+                combined[1 + nameBytes.length + 2] = (dataLen >> 8) & 0xFF;
+                combined[1 + nameBytes.length + 3] = dataLen & 0xFF;
+
+                combined.set(rawBuffer, headerLen);
+
+                fileData = combined;
                 frameIndex = 0;
                 switchTab('send');
                 drawFrame(0);
@@ -328,9 +349,18 @@
 
             const gap = Math.max(1, Math.floor(cellSize * 0.1));
 
+            // --- FLACKERNTER TAKT-BALKEN (TOP-LEFT ZELLE x=0, y=0) ---
+            // Wechselt bei jedem Frame zwischen Schwarz (0) und Weiß (1)
+            const clockIsWhite = (index % 2 === 0);
+            ctx.fillStyle = clockIsWhite ? "#FFFFFF" : "#000000";
+            ctx.fillRect(0 + gap / 2, 0 + gap / 2, cellSize - gap, cellSize - gap);
+
+            // Restliche Zellen ab Index 1 zeichnen
             for (let y = 0; y < gridSize; y++) {
                 for (let x = 0; x < gridSize; x++) {
-                    const cellIndex = y * gridSize + x;
+                    if (x === 0 && y === 0) continue; // Takt-Zelle überspringen
+
+                    const cellIndex = y * gridSize + x - 1; // -1 wegen Takt-Zelle
                     const byteIdx = startByte + cellIndex;
                     let color = "#000000";
 
@@ -363,7 +393,8 @@
             frameIndex = 0;
 
             const gridSize = parseInt(document.getElementById('gridSize').value);
-            const totalCells = gridSize * gridSize;
+            // Da Zelle (0,0) für den Takt reserviert ist, haben wir pro Frame (gridSize * gridSize - 1) Nutz-Bytes
+            const totalCells = (gridSize * gridSize) - 1;
             const totalFrames = Math.max(1, Math.ceil(fileData.length / totalCells));
 
             function loop() {
@@ -372,10 +403,8 @@
                 drawFrame(frameIndex);
                 document.getElementById('statusText').innerText = `Übertragung läuft... Frame ${frameIndex + 1} / ${totalFrames}`;
 
-                // Nächster Frame
                 frameIndex++;
 
-                // Automatischer Stopp genau nach dem letzten Frame
                 if (frameIndex >= totalFrames) {
                     stopTransmission();
                     document.getElementById('statusText').innerText = `Übertragung beendet (${totalFrames} Frames gesendet).`;
@@ -404,9 +433,10 @@
                 document.getElementById("statusText").innerText = "Empfange Daten per Kamera...";
                 
                 isReceiving = true;
-                receivedBytes = [];
+                rawPayloadBytes = [];
+                lastClockState = -1;
                 document.getElementById('receiveResultBox').style.display = 'block';
-                document.getElementById('recStatusInfo').innerText = "Warte auf Matrix-Signale...";
+                document.getElementById('recStatusInfo').innerText = "Warte auf Takt-Signal...";
 
                 startReceivingLoop();
             } catch (err) {
@@ -428,6 +458,7 @@
             }
         }
 
+        /* EMPFANGS-LOOP MIT TAKT-CHECKER (TOGGLE-BAR) */
         function startReceivingLoop() {
             const video = document.getElementById("webcam");
             const procCanvas = document.getElementById("processingCanvas");
@@ -449,12 +480,30 @@
 
                 pCtx.drawImage(video, startX, startY, cropSize, cropSize, 0, 0, gridSize, gridSize);
 
-                const frameDataBytes = [];
                 const imgData = pCtx.getImageData(0, 0, gridSize, gridSize);
                 const pixels = imgData.data;
 
+                // 1. TAKT-ZELLE PRÜFEN (Oben links: x=0, y=0)
+                const clockOffset = 0; // Pixel 0,0
+                const cr = pixels[clockOffset];
+                const cg = pixels[clockOffset + 1];
+                const cb = pixels[clockOffset + 2];
+                // Helligkeit ermitteln um zu entscheiden ob Schwarz (0) oder Weiß (1)
+                const clockBrightness = (cr + cg + cb) / 3;
+                const currentClockState = clockBrightness > 128 ? 1 : 0;
+
+                // Wenn sich der Takt-Zustand nicht geändert hat, ist es derselbe Frame -> Überspringen!
+                if (currentClockState === lastClockState) {
+                    return; 
+                }
+                lastClockState = currentClockState; // Takt aktualisieren
+
+                // 2. WENN NEUER TAKT: NUTRSDATEN EINLESEN
+                const frameDataBytes = [];
                 for (let y = 0; y < gridSize; y++) {
                     for (let x = 0; x < gridSize; x++) {
+                        if (x === 0 && y === 0) continue; // Takt-Zelle auslassen
+
                         const offset = (y * gridSize + x) * 4;
                         const r = pixels[offset];
                         const g = pixels[offset + 1];
@@ -475,23 +524,45 @@
                     }
                 }
 
-                const hasContent = frameDataBytes.some(val => val !== 0);
-                if (hasContent) {
-                    for (let bVal of frameDataBytes) {
-                        receivedBytes.push(bVal);
+                for (let bVal of frameDataBytes) {
+                    rawPayloadBytes.push(bVal);
+                }
+                document.getElementById('recStatusInfo').innerText = `Empfange... (${rawPayloadBytes.length} Bytes)`;
+
+                // Header prüfen und Datei zusammensetzen
+                if (rawPayloadBytes.length > 5) {
+                    const nameLen = rawPayloadBytes[0];
+                    if (rawPayloadBytes.length >= 1 + nameLen + 4) {
+                        const nameChunk = new Uint8Array(rawPayloadBytes.slice(1, 1 + nameLen));
+                        const extractedName = new TextDecoder().decode(nameChunk);
+
+                        const lenIndex = 1 + nameLen;
+                        const expectedDataLen = 
+                            (rawPayloadBytes[lenIndex] << 24) |
+                            (rawPayloadBytes[lenIndex + 1] << 16) |
+                            (rawPayloadBytes[lenIndex + 2] << 8) |
+                            rawPayloadBytes[lenIndex + 3];
+
+                        const headerTotalLen = 1 + nameLen + 4;
+                        const currentDataBytes = rawPayloadBytes.length - headerTotalLen;
+
+                        if (currentDataBytes >= expectedDataLen) {
+                            const filePayload = new Uint8Array(rawPayloadBytes.slice(headerTotalLen, headerTotalLen + expectedDataLen));
+                            
+                            const blob = new Blob([filePayload]);
+                            const blobUrl = URL.createObjectURL(blob);
+                            const dlLink = document.getElementById('downloadLink');
+                            dlLink.href = blobUrl;
+                            dlLink.download = extractedName || "empfangene_datei.bin";
+                            dlLink.style.display = "block";
+
+                            document.getElementById('recStatusInfo').innerText = `✅ Erfolgreich empfangen: ${extractedName} (${(expectedDataLen/1024).toFixed(1)} KB)`;
+                            isReceiving = false;
+                        }
                     }
-                    document.getElementById('recStatusInfo').innerText = `Bytes empfangen: ${receivedBytes.length}`;
-                    
-                    const byteArray = new Uint8Array(receivedBytes);
-                    const blob = new Blob([byteArray]);
-                    const blobUrl = URL.createObjectURL(blob);
-                    const dlLink = document.getElementById('downloadLink');
-                    dlLink.href = blobUrl;
-                    dlLink.download = "empfangene_datei.bin";
-                    dlLink.style.display = "block";
                 }
 
-            }, 250);
+            }, 100); // Schnelleres Polling, da der Takt-Checker überflüssige Frames sofort filtert
         }
     </script>
 </body>
